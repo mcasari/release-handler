@@ -2,87 +2,105 @@ import yaml
 import subprocess
 import logging
 import os
-from tkinter import messagebox
+import click
 
-# Configure logging
-logging.basicConfig(filename='release-handler.log', level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+def _run_command(command, cwd):
+    """Runs a shell command in the given working directory."""
+    process = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True)
+    if process.returncode != 0:
+        logging.error(f"Command failed: {command}\n{process.stderr}")
+    return process
 
-def load_projects(yaml_file):
-    with open(yaml_file, 'r') as file:
-        return yaml.safe_load(file)['projects']
+def _update_maven_version(path, version):
+    """Updates Maven project version and dependencies."""
+    logging.info(f"Updating Maven project at {path} to version {version}")
+    _run_command(f'mvn versions:set -DnewVersion={version} -DgenerateBackupPoms=false', path)
 
-def run_command(command, cwd):
-    result = subprocess.run(command, cwd=cwd, shell=True, capture_output=True, text=True)
-    if result.returncode == 0:
-        logging.info(f"Command succeeded: {command}")
-    else:
-        logging.error(f"Command failed: {command}\n{result.stderr}")
-
-def checkout_and_pull(project_path):
-    logging.info(f"Checking out master and pulling for {project_path}")
-    run_command("git checkout master", project_path)
-    run_command("git pull", project_path)
-
-def change_maven_version(project_path, new_version):
-    logging.info(f"Changing Maven project version in {project_path} to {new_version}")
-    run_command(f"mvn versions:set -DnewVersion={new_version} -DgenerateBackupPoms=false", project_path)
-    run_command("mvn versions:commit", project_path)
-
-def change_ant_version(project_path, version_property, new_version, version_file):
-    logging.info(f"Updating Ant project version in {project_path}")
-    version_file_path = os.path.join(project_path, version_file)
+def _update_ant_version(path, version, version_file):
+    """Updates Ant project version in the specified version file."""
+    logging.info(f"Updating Ant project at {path} to version {version} in {version_file}")
+    version_file_path = os.path.join(path, version_file)
     with open(version_file_path, 'r') as file:
         content = file.read()
-    new_content = content.replace(f'{version_property}=old_version', f'{version_property}={new_version}')
+    content = content.replace('version=', f'version={version}')
     with open(version_file_path, 'w') as file:
-        file.write(new_content)
+        file.write(content)
 
-def change_angular_version(project_path, new_version, version_file):
-    logging.info(f"Updating Angular project version in {project_path}")
-    version_file_path = os.path.join(project_path, version_file)
+def _update_angular_version(path, version, version_file):
+    """Updates Angular project version in the package.json or other specified file."""
+    logging.info(f"Updating Angular project at {path} to version {version} in {version_file}")
+    version_file_path = os.path.join(path, version_file)
     with open(version_file_path, 'r') as file:
         content = file.read()
-    new_content = content.replace('"version": "old_version"', f'"version": "{new_version}"')
+    content = content.replace('"version":', f'"version": "{version}"')
     with open(version_file_path, 'w') as file:
-        file.write(new_content)
+        file.write(content)
 
-def process_projects(yaml_file):
-    projects = load_projects(yaml_file)
-    for project in projects:
-        checkout_and_pull(project['path'])
+def _checkout_and_pull(path):
+    """Checks out the master branch and pulls the latest changes."""
+    logging.info(f"Checking out master and pulling latest changes for {path}")
+    _run_command('git checkout master', path)
+    _run_command('git pull', path)
+
+def update_projects_versions():
+    """Reads the YAML config and processes each project."""
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    for project in config['projects']:
+        _checkout_and_pull(project['folder'])
         if project['type'] == 'Maven':
-            change_maven_version(project['path'], project['version'])
+            _update_maven_version(project['folder'], project['version'])
         elif project['type'] == 'Ant':
-            change_ant_version(project['path'], project['version_name'], project['version'], project['version_file'])
+            _update_ant_version(project['folder'], project['version'], project['version_file'])
         elif project['type'] == 'Angular':
-            change_angular_version(project['path'], project['version'], project['version_file'])
+            _update_angular_version(project['folder'], project['version'], project['version_file'])
 
-def tag_projects(yaml_file):
-    projects = load_projects(yaml_file)
-    for project in projects:
-        logging.info(f"Tagging project {project['path']} with {project['tag']}")
-        run_command(f"git tag {project['tag']}", project['path'])
+def tag_projects():
+    """Tags each project with the configured tag name."""
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    for project in config['projects']:
+        logging.info(f"Tagging {project['folder']} with {project['tag']}")
+        _run_command(f'git tag {project["tag"]}', project['folder'])
 
-def commit_projects(yaml_file):
-    projects = load_projects(yaml_file)
-    for project in projects:
-        if messagebox.askyesno("Confirm Commit", f"Commit changes for {project['path']}?"):
-            logging.info(f"Committing project {project['path']}")
-            run_command("git add .", project['path'])
-            run_command("git commit -m 'Version update'", project['path'])
+def commit_projects():
+    """Commits changes for each project with confirmation."""
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    for project in config['projects']:
+        if click.confirm(f"Commit changes for {project['folder']}?"):
+            logging.info(f"Committing changes for {project['folder']}")
+            _run_command('git commit -am "Updating project version"', project['folder'])
 
-def push_projects(yaml_file):
-    projects = load_projects(yaml_file)
-    for project in projects:
-        if messagebox.askyesno("Confirm Push", f"Push changes for {project['path']}?"):
-            logging.info(f"Pushing project {project['path']}")
-            run_command("git push", project['path'])
+def push_projects():
+    """Pushes changes for each project with confirmation."""
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    for project in config['projects']:
+        if click.confirm(f"Push changes for {project['folder']}?"):
+            logging.info(f"Pushing changes for {project['folder']}")
+            _run_command('git push', project['folder'])
 
-def reset_lastcommit(yaml_file):
-    projects = load_projects(yaml_file)
-    for project in projects:
-        reset_type = project['reset-type'].lower()
-        if messagebox.askyesno("Confirm Reset", f"Reset last commit ({reset_type}) for {project['path']}?"):
-            logging.info(f"Resetting last commit ({reset_type}) for {project['path']}")
-            run_command(f"git reset --{reset_type}", project['path'])
+def reset_lastcommit():
+    """Resets the last commit for each project based on reset type."""
+    with open('config.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+    
+    for project in config['projects']:
+        if click.confirm(f"Reset last commit for {project['folder']} ({project['reset-type']})?"):
+            logging.info(f"Resetting last commit for {project['folder']} with {project['reset-type']} mode")
+            _run_command(f'git reset --{project["reset-type"]} HEAD~1', project['folder'])
+
+if __name__ == "__main__":
+    logging.basicConfig(filename='release-handler.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+    cli = click.Group()
+    cli.add_command(click.Command('update_projects_versions', callback=process_projects))
+    cli.add_command(click.Command('tag_projects', callback=tag_projects))
+    cli.add_command(click.Command('commit_projects', callback=commit_projects))
+    cli.add_command(click.Command('push_projects', callback=push_projects))
+    cli.add_command(click.Command('reset_lastcommit', callback=reset_lastcommit))
+    cli()
