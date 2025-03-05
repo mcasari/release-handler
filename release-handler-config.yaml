@@ -1,0 +1,25 @@
+
+projects:
+  - path: "/home/user/projects/maven-project"
+    type: "Maven"
+    version_property: "version"
+    version_value: "1.2.0"
+    version_file: "pom.xml"
+    version_file_type: "xml"
+    tag_name: "v1.2.0"
+
+  - path: "/home/user/projects/ant-project"
+    type: "Ant"
+    version_property: "build.version"
+    version_value: "2.0.0"
+    version_file: "build.properties"
+    version_file_type: "properties"
+    tag_name: "v2.0.0"
+
+  - path: "/home/user/projects/angular-project"
+    type: "Angular"
+    version_property: "version"
+    version_value: "3.1.0"
+    version_file: "package.json"
+    version_file_type: "json"
+    tag_name: "v3.1.0"
