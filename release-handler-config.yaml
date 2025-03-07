@@ -1,36 +1,32 @@
+environment: production
 release_notes:
-  - "Release 1.0.0 - Initial deployment"
-  - "Release 1.1.0 - Bug fixes and improvements"
+  - "Fixed major security vulnerability"
+  - "Improved performance in API endpoints"
 
 projects:
   - name: ProjectA
     folder: /path/to/projectA
     type: Maven
-    property_name: version
-    version: "1.1.0"
+    version: 1.2.3
     version_file: pom.xml
     version_file_type: xml
-    tag_name: v1.1.0
+    tag: "{environment}-release-1.2.3"
     reset-type: soft
 
   - name: ProjectB
     folder: /path/to/projectB
     type: Ant
-    property_name: build.version
-    version: "2.0.0"
+    version: 2.0.1
     version_file: build.properties
     version_file_type: properties
-    tag_name: v2.0.0
+    tag: "{environment}-release-2.0.1"
     reset-type: mixed
 
   - name: ProjectC
     folder: /path/to/projectC
     type: Angular
-    property_name: version
-    version: "3.1.0"
+    version: 3.1.0
     version_file: package.json
     version_file_type: json
-    tag_name: v3.1.0
+    tag: "{environment}-release-3.1.0"
     reset-type: hard
-
-
