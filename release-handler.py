@@ -3,7 +3,8 @@ import os
 import subprocess
 import logging
 import sys
-import xml.etree.ElementTree as ET 
+import xml.etree.ElementTree as ET
+import re
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
@@ -27,7 +28,8 @@ def _update_maven_version(project_path, new_version):
     for pom_file in pom_files:
         with open(pom_file, 'r', encoding='utf-8') as file:
             content = file.read()
-            content = content.replace(' xmlns="http://maven.apache.org/POM/4.0.0"', '')
+            content = re.sub(r'xmlns(\w+)?="[^"]+"', '', content)
+            print(content)
         root = ET.fromstring(content)
         
         # Update project version
