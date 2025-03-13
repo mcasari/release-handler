@@ -1,32 +1,17 @@
-environment: production
+environment: TEST
 release_notes:
-  - "Fixed major security vulnerability"
-  - "Improved performance in API endpoints"
+  - "Nota 1"
+  - "Nota 2"
 
 projects:
-  - name: ProjectA
-    folder: /path/to/projectA
+  - name: pbworkspace
+    project_path: C:\eclipse-workspaces\csi\pbworkspace
     type: Maven
-    version: 1.2.3
+    version: 1.21.0
     version_file: pom.xml
-    version_file_type: xml
-    tag: "{environment}-release-1.2.3"
-    reset-type: soft
-
-  - name: ProjectB
-    folder: /path/to/projectB
-    type: Ant
-    version: 2.0.1
-    version_file: build.properties
-    version_file_type: properties
-    tag: "{environment}-release-2.0.1"
-    reset-type: mixed
-
-  - name: ProjectC
-    folder: /path/to/projectC
-    type: Angular
-    version: 3.1.0
-    version_file: package.json
-    version_file_type: json
-    tag: "{environment}-release-3.1.0"
+    tag: "{environment}-1.20.0-001"
     reset-type: hard
+    dependencies:
+      - "pbworkspace-ear"
+      - "pbworkspace-jar"
+      - "pbworkspace-web"

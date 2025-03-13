@@ -10,47 +10,70 @@ import re
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
                     
-def _update_maven_version(project_path, new_version):
+def _update_maven_versions(project_path, dependencies, version):
     """
-    Updates the versions in a multi-module Maven project.
-    :param project_path: Path to the root of the Maven project.
-    :param new_version: The new version to set in pom.xml files.
-    """
-    if not os.path.isdir(project_path):
-        raise ValueError("Invalid project path")
+    Updates the version of specified dependencies in all pom.xml files within the given Maven project.
     
-    # Collect all pom.xml files
-    pom_files = []
+    :param project_path: Path to the Maven project directory.
+    :param dependencies: List of dependency artifactIds to update.
+    :param new_version: The new version to set for these dependencies.
+    """
     for root, _, files in os.walk(project_path):
         if 'pom.xml' in files:
-            pom_files.append(os.path.join(root, 'pom.xml'))
+            pom_path = os.path.join(root, 'pom.xml')
+            #print(f"pom_path {pom_path}")
+            tree = ET.parse(pom_path)
+            root_element = tree.getroot()
+            
+            # Define the XML namespaces
+            namespaces = {'m': 'http://maven.apache.org/POM/4.0.0'}
+            ET.register_namespace('', namespaces['m'])
+            
+            modified = False
+            # Update the version of the project itself
+            for project_version in root_element.findall("./m:version", namespaces):
+                if project_version is not None:
+                    project_version.text = version
+                    modified = True
+
+            # Update the parent version
+            for parent_tag in root_element.findall("./m:parent", namespaces):
+                if parent_tag is not None:
+                    for parent_version in parent_tag.findall("./m:version", namespaces):                      
+                        if parent_version is not None:
+                            parent_version.text = version
+                            modified = True
+            
+            
+            for dependency in root_element.findall(".//m:dependency", namespaces):
+                artifact_id_elem = dependency.find("m:artifactId", namespaces)
+                version_elem = dependency.find("m:version", namespaces)
+                
+                if artifact_id_elem is not None and version_elem is not None:
+                    if artifact_id_elem.text in dependencies:
+                        print(f"artifact_id_elem.text {artifact_id_elem.text}")
+                        version_elem.text = version
+                        modified = True
+                        #print(f"Updated {artifact_id_elem.text} in {pom_path} to version {version}")
+            
+            if modified:
+                tree.write(pom_path, xml_declaration=True, encoding='utf-8')
+                #print(f"Updated dependencies in {pom_path}")
+
+# Example usage
+# update_maven_dependencies('/path/to/maven/project', ['dependency1', 'dependency2'], '1.2.3')
+
+
+def _update_maven_versions_from_yaml(project):    
+    project_path = project.get("project_path")
+    dependencies = project.get("dependencies", [])
+    version = project.get("version")
+    if not project_path or not dependencies or not version:
+        raise ValueError("YAML file must contain 'project_path', 'dependencies', and 'version' fields.")
     
-    for pom_file in pom_files:
-        with open(pom_file, 'r', encoding='utf-8') as file:
-            content = file.read()
-            content = re.sub(r'xmlns(\w+)?="[^"]+"', '', content)
-            print(content)
-        root = ET.fromstring(content)
-        
-        # Update project version
-        for elem in root.findall("./version"):
-            elem.text = new_version
-        
-        # Update parent version if present
-        for elem in root.findall("./parent/version"):
-            elem.text = new_version
-        
-        # Update dependency versions
-        for dependency in root.findall(".//dependency"):
-            version = dependency.find("version")
-            if version is not None:
-                version.text = new_version
-        
-        # Save changes without adding namespaces
-        tree = ET.ElementTree(root)
-        tree.write(pom_file, encoding="utf-8", xml_declaration=True)
-    
-    logging.info(f"Updated all module versions to {new_version}")                   
+    _update_maven_versions(project_path, dependencies, version)
+
+                                       
                     
 def _find_file(base_path, filename):
     for root, _, files in os.walk(base_path):
@@ -97,13 +120,13 @@ def update_versions():
         config = yaml.safe_load(file)
     
     for project in config["projects"]:
-        _git_checkout_and_pull(project["folder"])
+        _git_checkout_and_pull(project["project_path"])
         if project["type"] == "Maven":
-            _update_maven_version(project["folder"], project["version"])
+            _update_maven_versions_from_yaml(project)
         elif project["type"] == "Ant":
-            _update_ant_version(project["folder"], project["version"], project["version_file"])
+            _update_ant_version(project["project_path"], project["version"], project["version_file"])
         elif project["type"] == "Angular":
-            _update_angular_version(project["folder"], project["version"], project["version_file"])
+            _update_angular_version(project["project_path"], project["version"], project["version_file"])
 
 def tag_projects():
     """Tags each project with the appropriate tag name."""
