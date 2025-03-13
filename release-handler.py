@@ -84,11 +84,12 @@ def _update_maven_versions(project_path, dependencies, version):
                 version_elem = dependency.find("m:version", namespaces)
                 
                 if artifact_id_elem is not None and version_elem is not None:
-                    if artifact_id_elem.text in dependencies:
-                        print(f"artifact_id_elem.text {artifact_id_elem.text}")
-                        version_elem.text = version
-                        modified = True
-                        #print(f"Updated {artifact_id_elem.text} in {pom_path} to version {version}")
+                    for dependency in dependencies:
+                        if artifact_id_elem.text in dependency["dependencyName"]:
+                            print(f"artifact_id_elem.text {artifact_id_elem.text}")
+                            version_elem.text = dependency["dependencyVersion"]
+                            modified = True
+                            #print(f"Updated {artifact_id_elem.text} in {pom_path} to version {version}")
             
             if modified:
                 tree.write(pom_path, xml_declaration=True, encoding='utf-8')

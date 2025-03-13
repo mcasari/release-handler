@@ -12,8 +12,8 @@ projects:
     tag: "{environment}-1.20.0-001"
     reset-type: hard
     properties:
-      - propertyName: tar.version
-        propertyValue: 1.21.0
+      - propertyName: "tar.version"
+        propertyValue: "1.21.0"
     dependencies:
       - dependencyName: pbworkspace-ear
         dependencyVersion: 1.21.0
