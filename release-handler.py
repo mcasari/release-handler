@@ -10,6 +10,47 @@ import re
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
                     
+def _update_all_pom_properties(project_path, property_name, new_value):
+    """
+    Finds all pom.xml files in a Maven project and updates a given property.
+    
+    :param project_path: Root directory of the Maven project
+    :param property_name: The property name to update
+    :param new_value: The new value for the property
+    """
+    for root, _, files in os.walk(project_path):
+        for file in files:
+            if file == "pom.xml":
+                file_path = os.path.join(root, file)
+                update_pom_property(file_path, property_name, new_value)
+
+def _update_pom_property(file_path, property_name, new_value):
+    """
+    Updates the value of a given property in a pom.xml file.
+    
+    :param file_path: Path to the pom.xml file
+    :param property_name: The name of the property to update
+    :param new_value: The new value to set for the property
+    """
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+    
+    # Define the XML namespace
+    ns = {'maven': 'http://maven.apache.org/POM/4.0.0'}
+    ET.register_namespace('', ns['maven'])
+    
+    # Locate the <properties> section
+    properties = root.find(".//maven:properties", ns)
+    if properties is not None:
+        property_element = properties.find(f"maven:{property_name}", ns)
+        if property_element is not None:
+            property_element.text = new_value
+            print(f"Updated {property_name} to {new_value}")
+        else:
+            print(f"Property {property_name} not found in pom.xml.")
+    else:
+        print("No <properties> section found in pom.xml.")
+        
 def _update_maven_versions(project_path, dependencies, version):
     """
     Updates the version of specified dependencies in all pom.xml files within the given Maven project.
@@ -30,6 +71,7 @@ def _update_maven_versions(project_path, dependencies, version):
             ET.register_namespace('', namespaces['m'])
             
             modified = False
+
             # Update the version of the project itself
             for project_version in root_element.findall("./m:version", namespaces):
                 if project_version is not None:
@@ -122,6 +164,7 @@ def update_versions():
     for project in config["projects"]:
         _git_checkout_and_pull(project["project_path"])
         if project["type"] == "Maven":
+            _update_all_pom_properties(project_path, property_name, new_value)
             _update_maven_versions_from_yaml(project)
         elif project["type"] == "Ant":
             _update_ant_version(project["project_path"], project["version"], project["version_file"])
@@ -146,15 +189,6 @@ def commit_projects():
     for project in config["projects"]:
         if click.confirm(f"Commit changes for {project['name']}?"):
             _execute_command(["git", "commit", "-am", f"Updated version for {project['name']}"] , project["folder"])
-
-def push_projects():
-    """Pushes commits for each project with confirmation."""
-    with open("release-handler-config.yaml", "r") as file:
-        config = yaml.safe_load(file)
-    
-    for project in config["projects"]:
-        if click.confirm(f"Push changes for {project['name']}?"):
-            _execute_command(["git", "push"], project["folder"])
 
 def reset_lastcommit():
     """Resets the last commit based on reset-type."""
