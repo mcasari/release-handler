@@ -31,19 +31,19 @@ def _update_pom_property(file_path, config):
     if properties is not None:
         for configProjects in config["projects"]:
             for configProperties in configProjects["properties"]:        
-                property_element = properties.find(f"maven:{configProperties['propertyName']}", ns)
+                property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
                 if property_element is not None:
-                    property_element.text = configProperties['propertyValue']
-                    print(f"Updated {configProperties['propertyName']} to {configProperties['propertyValue']}")
+                    property_element.text = configProperties['property_value']
+                    print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
                     modified = True                
                 else:
-                    print(f"Property {configProperties['propertyName']} not found in pom.xml.")
+                    print(f"Property {configProperties['property_name']} not found in pom.xml.")
     else:
         print("No <properties> section found in pom.xml.")
     if modified:
         tree.write(file_path, xml_declaration=True, encoding='utf-8')
         
-def _update_maven_versions(project_path, dependencies, version):
+def _update_maven_versions(project_path, dependencies, version, parent_version):
     """
     Updates the version of specified dependencies in all pom.xml files within the given Maven project.
     
@@ -73,9 +73,9 @@ def _update_maven_versions(project_path, dependencies, version):
             # Update the parent version
             for parent_tag in root_element.findall("./m:parent", namespaces):
                 if parent_tag is not None:
-                    for parent_version in parent_tag.findall("./m:version", namespaces):                      
-                        if parent_version is not None:
-                            parent_version.text = version
+                    for parent_vers in parent_tag.findall("./m:version", namespaces):                      
+                        if parent_vers is not None:    
+                            parent_vers.text = parent_version
                             modified = True
             
             
@@ -85,9 +85,9 @@ def _update_maven_versions(project_path, dependencies, version):
                 
                 if artifact_id_elem is not None and version_elem is not None:
                     for dependency in dependencies:
-                        if artifact_id_elem.text in dependency["dependencyName"]:
+                        if artifact_id_elem.text in dependency["dependency_name"]:
                             print(f"artifact_id_elem.text {artifact_id_elem.text}")
-                            version_elem.text = dependency["dependencyVersion"]
+                            version_elem.text = dependency["dependency_version"]
                             modified = True
                             #print(f"Updated {artifact_id_elem.text} in {pom_path} to version {version}")
             
@@ -101,12 +101,13 @@ def _update_maven_versions(project_path, dependencies, version):
 
 def _update_maven_versions_from_yaml(project):    
     project_path = project.get("project_path")
+    parent_version = project.get("parent_version")
     dependencies = project.get("dependencies", [])
     version = project.get("version")
     if not project_path or not dependencies or not version:
         raise ValueError("YAML file must contain 'project_path', 'dependencies', and 'version' fields.")
     
-    _update_maven_versions(project_path, dependencies, version)
+    _update_maven_versions(project_path, dependencies, version, parent_version)
 
                                        
                     

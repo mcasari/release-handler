@@ -10,14 +10,15 @@ projects:
     version: 1.21.0
     version_file: pom.xml
     tag: "{environment}-1.20.0-001"
-    reset-type: hard
+    reset_type: hard
+    parent_version: 1.21.0
     properties:
-      - propertyName: "tar.version"
-        propertyValue: "1.21.0"
+      - property_name: tar.version
+        property_value: 1.21.0
     dependencies:
-      - dependencyName: pbworkspace-ear
-        dependencyVersion: 1.21.0
-      - dependencyName: pbworkspace-jar
-        dependencyVersion: 1.21.0
-      - dependencyName: pbworkspace-web
-        dependencyVersion: 1.21.0
+      - dependency_name: pbworkspace-ear
+        dependency_version: 1.21.0
+      - dependency_name: pbworkspace-jar
+        dependency_version: 1.21.0
+      - dependency_name: pbworkspace-web
+        dependency_version: 1.21.0
