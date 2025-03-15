@@ -9,7 +9,7 @@ projects:
     type: Maven
     version: 1.21.0
     version_file: pom.xml
-    tag: "{environment}-1.20.0-001"
+    tag: "{environment}-1.21.0-001"
     reset_type: hard
     parent_version: 1.21.0
     properties:

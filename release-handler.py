@@ -10,6 +10,24 @@ import re
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
                     
+                                        
+def _resolve_placeholders(data, context=None):
+    """ Recursively resolves placeholders in a dictionary using string formatting """
+    if context is None:
+        context = data  # Initial context is the entire data
+    
+    if isinstance(data, dict):
+        return {key: _resolve_placeholders(value, context) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_resolve_placeholders(item, context) for item in data]
+    elif isinstance(data, str):
+        try:
+            return data.format(**context)  # Use Python string formatting
+        except KeyError:
+            return data  # Return as-is if placeholders are unresolved
+    else:
+        return data  # Return non-string values unchanged
+                    
 def _update_all_pom_properties(project_path, config):
     for root, _, files in os.walk(project_path):
         for file in files:
@@ -167,18 +185,42 @@ def update_versions():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
     
-
-
 def tag_projects():
     """Tags each project with the appropriate tag name."""
-    with open("release-handler-config.yaml", "r") as file:
-        config = yaml.safe_load(file)
-    
-    for project in config["projects"]:
-        tag = f"{config['environment']}-{project['tag']}"
-        _execute_command(["git", "tag", tag], project["folder"])
-        logging.info(f"Tagged {project['name']} with {tag}")
-
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            resolved_config = _resolve_placeholders(config)
+        
+        for project in resolved_config["projects"]:
+            tag = project["tag"]
+            try:
+                _execute_command(["git", "tag", "-d", tag], project["project_path"])
+            except Exception as e:
+                pass
+            _execute_command(["git", "tag", tag], project["project_path"])
+            logging.info(f"Tagged {project['name']} with {tag}")
+            print(f"Tagged {project['name']} with {tag}")
+    except Exception as ex:
+        logging.error(f"An error occurred: {ex}")  
+        print(f"An error occurred: {ex}")
+                
+def delete_tags():
+    """Delete tag of each project with the appropriate tag name."""
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            resolved_config = _resolve_placeholders(config)
+        
+        for project in resolved_config["projects"]:
+            tag = project["tag"]
+            _execute_command(["git", "tag", "-d", tag], project["project_path"])
+            logging.info(f"Deleted tag {tag}")
+            print(f"Deleted tag {tag}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+        
 def commit_projects():
     """Commits changes for each project with confirmation."""
     with open("release-handler-config.yaml", "r") as file:
@@ -203,6 +245,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "update_versions":
             update_versions()
-            
+        elif sys.argv[1] == "tag_projects":
+            tag_projects() 
+        elif sys.argv[1] == "delete_tags":
+            delete_tags()               
     else:
         print("Usage: python script.py <name>")
