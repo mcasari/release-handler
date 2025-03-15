@@ -120,6 +120,8 @@ def _execute_command(command, cwd):
         logging.info(f"Executed: {' '.join(command)} in {cwd}")
     except subprocess.CalledProcessError as e:
         logging.error(f"Command failed: {e}")
+        print(f"Command failed: {e}")
+        raise
 
 def _update_ant_version(path, version, version_file):
     """Updates the Ant project version."""
@@ -151,15 +153,21 @@ def update_versions():
     with open("release-handler-config.yaml", "r") as file:
         config = yaml.safe_load(file)
     
-    for project in config["projects"]:
-        _git_checkout_and_pull(project["project_path"])
-        if project["type"] == "Maven":
-            _update_all_pom_properties(project["project_path"], config)
-            _update_maven_versions_from_yaml(project, config)
-        elif project["type"] == "Ant":
-            _update_ant_version(project["project_path"], project["version"], project["version_file"])
-        elif project["type"] == "Angular":
-            _update_angular_version(project["project_path"], project["version"], project["version_file"])
+    try:
+        for project in config["projects"]:
+            _git_checkout_and_pull(project["project_path"])
+            if project["type"] == "Maven":
+                _update_all_pom_properties(project["project_path"], config)
+                _update_maven_versions_from_yaml(project, config)
+            elif project["type"] == "Ant":
+                _update_ant_version(project["project_path"], project["version"], project["version_file"])
+            elif project["type"] == "Angular":
+                _update_angular_version(project["project_path"], project["version"], project["version_file"])
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+    
+
 
 def tag_projects():
     """Tags each project with the appropriate tag name."""
