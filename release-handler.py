@@ -20,17 +20,18 @@ def _update_all_pom_properties(project_path, config):
 def _update_pom_property(file_path, config):
     tree = ET.parse(file_path)
     root = tree.getroot()
+    maven_namespace = config["maven_namespace"]
     
     # Define the XML namespace
-    ns = {'maven': 'http://maven.apache.org/POM/4.0.0'}
+    ns = {'maven': maven_namespace}
     ET.register_namespace('', ns['maven'])
     
     # Locate the <properties> section
     modified = False
     properties = root.find(".//maven:properties", ns)
-    if properties is not None:
-        for configProjects in config["projects"]:
-            for configProperties in configProjects["properties"]:        
+    if properties is not None:     
+        for configProjects in config["projects"]:        
+            for configProperties in configProjects["properties"]:                 
                 property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
                 if property_element is not None:
                     property_element.text = configProperties['property_value']
@@ -43,23 +44,16 @@ def _update_pom_property(file_path, config):
     if modified:
         tree.write(file_path, xml_declaration=True, encoding='utf-8')
         
-def _update_maven_versions(project_path, dependencies, version, parent_version):
-    """
-    Updates the version of specified dependencies in all pom.xml files within the given Maven project.
-    
-    :param project_path: Path to the Maven project directory.
-    :param dependencies: List of dependency artifactIds to update.
-    :param new_version: The new version to set for these dependencies.
-    """
+def _update_maven_versions(project_path, dependencies, version, parent_version, maven_namespace):
     for root, _, files in os.walk(project_path):
         if 'pom.xml' in files:
             pom_path = os.path.join(root, 'pom.xml')
-            #print(f"pom_path {pom_path}")
             tree = ET.parse(pom_path)
             root_element = tree.getroot()
             
             # Define the XML namespaces
-            namespaces = {'m': 'http://maven.apache.org/POM/4.0.0'}
+            # Define the XML namespace
+            namespaces = {'m': maven_namespace}
             ET.register_namespace('', namespaces['m'])
             
             modified = False
@@ -89,17 +83,12 @@ def _update_maven_versions(project_path, dependencies, version, parent_version):
                             print(f"artifact_id_elem.text {artifact_id_elem.text}")
                             version_elem.text = dependency["dependency_version"]
                             modified = True
-                            #print(f"Updated {artifact_id_elem.text} in {pom_path} to version {version}")
             
             if modified:
                 tree.write(pom_path, xml_declaration=True, encoding='utf-8')
-                #print(f"Updated dependencies in {pom_path}")
 
-# Example usage
-# update_maven_dependencies('/path/to/maven/project', ['dependency1', 'dependency2'], '1.2.3')
-
-
-def _update_maven_versions_from_yaml(project):    
+def _update_maven_versions_from_yaml(project, config):    
+    maven_namespace = config["maven_namespace"]
     project_path = project.get("project_path")
     parent_version = project.get("parent_version")
     dependencies = project.get("dependencies", [])
@@ -107,7 +96,7 @@ def _update_maven_versions_from_yaml(project):
     if not project_path or not dependencies or not version:
         raise ValueError("YAML file must contain 'project_path', 'dependencies', and 'version' fields.")
     
-    _update_maven_versions(project_path, dependencies, version, parent_version)
+    _update_maven_versions(project_path, dependencies, version, parent_version, maven_namespace)
 
                                        
                     
@@ -159,7 +148,7 @@ def update_versions():
         _git_checkout_and_pull(project["project_path"])
         if project["type"] == "Maven":
             _update_all_pom_properties(project["project_path"], config)
-            _update_maven_versions_from_yaml(project)
+            _update_maven_versions_from_yaml(project, config)
         elif project["type"] == "Ant":
             _update_ant_version(project["project_path"], project["version"], project["version_file"])
         elif project["type"] == "Angular":

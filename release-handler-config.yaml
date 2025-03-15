@@ -2,7 +2,7 @@ environment: TEST
 release_notes:
   - "Nota 1"
   - "Nota 2"
-
+maven_namespace: http://maven.apache.org/POM/4.0.0
 projects:
   - name: pbworkspace
     project_path: C:\eclipse-workspaces\csi\pbworkspace
