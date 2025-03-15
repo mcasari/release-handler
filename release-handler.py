@@ -35,11 +35,14 @@ def _update_pom_property(file_path, config):
                 property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
                 if property_element is not None:
                     property_element.text = configProperties['property_value']
+                    logging.info(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
                     print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
                     modified = True                
                 else:
+                    logging.info(f"Property {configProperties['property_name']} not found in pom.xml.")
                     print(f"Property {configProperties['property_name']} not found in pom.xml.")
     else:
+        logging.info("No <properties> section found in pom.xml.")
         print("No <properties> section found in pom.xml.")
     if modified:
         tree.write(file_path, xml_declaration=True, encoding='utf-8')
@@ -63,14 +66,18 @@ def _update_maven_versions(project_path, dependencies, version, parent_version, 
                 if project_version is not None:
                     project_version.text = version
                     modified = True
+                    logging.info(f"Project version updated to {version}")
+                    print(f"Project version updated to {version}")
 
             # Update the parent version
             for parent_tag in root_element.findall("./m:parent", namespaces):
                 if parent_tag is not None:
                     for parent_vers in parent_tag.findall("./m:version", namespaces):                      
-                        if parent_vers is not None:    
+                        if parent_vers is not None:
                             parent_vers.text = parent_version
                             modified = True
+                            logging.info(f"Parent version updated to {version}")
+                            print(f"Parent version updated to {version}")
             
             
             for dependency in root_element.findall(".//m:dependency", namespaces):
@@ -80,10 +87,10 @@ def _update_maven_versions(project_path, dependencies, version, parent_version, 
                 if artifact_id_elem is not None and version_elem is not None:
                     for dependency in dependencies:
                         if artifact_id_elem.text in dependency["dependency_name"]:
-                            print(f"artifact_id_elem.text {artifact_id_elem.text}")
                             version_elem.text = dependency["dependency_version"]
                             modified = True
-            
+                            logging.info(f"Dependency {dependency["dependency_name"]}  updated to {dependency["dependency_version"]}")
+                            print(f"Dependency {dependency["dependency_name"]}  updated to {dependency["dependency_version"]}")            
             if modified:
                 tree.write(pom_path, xml_declaration=True, encoding='utf-8')
 
