@@ -5,11 +5,28 @@ import logging
 import sys
 import xml.etree.ElementTree as ET
 import re
+import click
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
-                    
+
+def _is_last_commit_pushed(project_path):
+    try:
+        # Get the latest commit hash
+        commit_hash = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=project_path
+        ).strip().decode("utf-8")
+
+        # Check if the commit is in the remote
+        remote_branches = subprocess.check_output(
+            ["git", "branch", "-r", "--contains", commit_hash], cwd=project_path
+        ).strip().decode("utf-8")
+
+        # If the commit exists in remote branches, it's pushed
+        return bool(remote_branches)
+    except subprocess.CalledProcessError:
+        return False              
                                         
 def _resolve_placeholders(data, context=None):
     """ Recursively resolves placeholders in a dictionary using string formatting """
@@ -223,23 +240,37 @@ def delete_tags():
         
 def commit_projects():
     """Commits changes for each project with confirmation."""
-    with open("release-handler-config.yaml", "r") as file:
-        config = yaml.safe_load(file)
-    
-    for project in config["projects"]:
-        if click.confirm(f"Commit changes for {project['name']}?"):
-            _execute_command(["git", "commit", "-am", f"Updated version for {project['name']}"] , project["folder"])
-
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+        
+        for project in config["projects"]:
+            if click.confirm(f"Commit changes for {project['name']}?"):
+                _execute_command(["git", "commit", "-am", f"Updated version/tag for {project['name']}"] , project["project_path"])
+                logging.info(f"Committed project {project['name']}")
+                print(f"Committed project {project['name']}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+        
 def reset_lastcommit():
     """Resets the last commit based on reset-type."""
-    with open("release-handler-config.yaml", "r") as file:
-        config = yaml.safe_load(file)
-    
-    for project in config["projects"]:
-        if click.confirm(f"Reset last commit for {project['name']}?"):
-            _execute_command(["git", "reset", f"--{config['reset-type']}"] , project["folder"])
-
-
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+        
+        for project in config["projects"]:
+            if click.confirm(f"Reset last commit for {project['name']}?", default=True):
+                if not _is_last_commit_pushed(project["project_path"]):
+                    _execute_command(["git", "reset", f"--{project['reset_type']}", "HEAD~1"] , project["project_path"])
+                    logging.info(f"Resetted last commit for project {project['name']}")
+                    print(f"Resetted last commit for project {project['name']}")
+                else:
+                    logging.info(f"Reset aborted because the last commit for project {project['name']} was already pushed")
+                    print(f"Reset aborted because the last commit for project {project['name']} was already pushed")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -248,6 +279,10 @@ if __name__ == "__main__":
         elif sys.argv[1] == "tag_projects":
             tag_projects() 
         elif sys.argv[1] == "delete_tags":
-            delete_tags()               
+            delete_tags() 
+        elif sys.argv[1] == "commit_projects":
+            commit_projects()    
+        elif sys.argv[1] == "reset_lastcommit":
+            reset_lastcommit()             
     else:
         print("Usage: python script.py <name>")
