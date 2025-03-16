@@ -202,7 +202,7 @@ def update_versions():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
     
-def tag_projects():
+def create_tags():
     """Tags each project with the appropriate tag name."""
     try:
         with open("release-handler-config.yaml", "r") as file:
@@ -253,7 +253,7 @@ def commit_projects():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def reset_lastcommit():
+def reset_projects_last_commit():
     """Resets the last commit based on reset-type."""
     try:
         with open("release-handler-config.yaml", "r") as file:
@@ -272,17 +272,34 @@ def reset_lastcommit():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
 
+def reset_projects():
+    """Resets projects based on reset-type."""
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+        
+        for project in config["projects"]:
+            if click.confirm(f"Reset {project['name']}?", default=True):
+                _execute_command(["git", "reset", f"--{project['reset_type']}"] , project["project_path"])
+                logging.info(f"Resetted project {project['name']}")
+                print(f"Resetted project {project['name']}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+        
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "update_versions":
             update_versions()
-        elif sys.argv[1] == "tag_projects":
-            tag_projects() 
+        elif sys.argv[1] == "create_tags":
+            create_tags() 
         elif sys.argv[1] == "delete_tags":
-            delete_tags() 
+            delete_tags()
         elif sys.argv[1] == "commit_projects":
-            commit_projects()    
-        elif sys.argv[1] == "reset_lastcommit":
-            reset_lastcommit()             
+            commit_projects()               
+        elif sys.argv[1] == "reset_projects_last_commit":
+            reset_projects_last_commit()
+        elif sys.argv[1] == "reset_projects":
+            reset_projects()               
     else:
         print("Usage: python script.py <name>")
