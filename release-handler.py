@@ -65,17 +65,18 @@ def _update_pom_property(file_path, config):
     modified = False
     properties = root.find(".//maven:properties", ns)
     if properties is not None:     
-        for configProjects in config["projects"]:        
-            for configProperties in configProjects["properties"]:                 
-                property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
-                if property_element is not None:
-                    property_element.text = configProperties['property_value']
-                    logging.info(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
-                    print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
-                    modified = True                
-                else:
-                    logging.info(f"Property {configProperties['property_name']} not found in pom.xml.")
-                    print(f"Property {configProperties['property_name']} not found in pom.xml.")
+        for configProjects in config["projects"]:
+            if configProjects["type"] == "Maven":
+                for configProperties in configProjects["properties"]:                 
+                    property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
+                    if property_element is not None:
+                        property_element.text = configProperties['property_value']
+                        logging.info(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
+                        print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
+                        modified = True                
+                    else:
+                        logging.info(f"Property {configProperties['property_name']} not found in pom.xml.")
+                        print(f"Property {configProperties['property_name']} not found in pom.xml.")
     else:
         logging.info("No <properties> section found in pom.xml.")
         print("No <properties> section found in pom.xml.")
@@ -163,9 +164,10 @@ def _update_ant_version(path, version, version_file):
     version_file_path = _find_file(path, version_file)
     with open(version_file_path, 'r') as file:
         content = file.read()
-    content = content.replace("version=", f"version={version}")
+    content = re.sub(r'(?m)^\s*version\s*=\s*.*$', f'version = {version}', content)
     with open(version_file_path, 'w') as file:
         file.write(content)
+    print(f"Updated Ant version in {version_file_path} to {version}")
     logging.info(f"Updated Ant version in {version_file_path} to {version}")
 
 def _update_angular_version(path, version, version_file):
@@ -173,9 +175,10 @@ def _update_angular_version(path, version, version_file):
     version_file_path = _find_file(path, version_file)
     with open(version_file_path, 'r') as file:
         content = file.read()
-    content = content.replace("\"version\": \"", f"\"version\": \"{version}\"")
+    content = re.sub(r'"version"\s*:\s*".*?"\s*,', f'"version": "{version}",', content)
     with open(version_file_path, 'w') as file:
         file.write(content)
+    print(f"Updated Angular version in {version_file_path} to {version}")
     logging.info(f"Updated Angular version in {version_file_path} to {version}")
 
 def _git_checkout_and_pull(path):
@@ -190,7 +193,7 @@ def update_versions():
     
     try:
         for project in config["projects"]:
-            _git_checkout_and_pull(project["project_path"])
+            #_git_checkout_and_pull(project["project_path"])
             if project["type"] == "Maven":
                 _update_all_pom_properties(project["project_path"], config)
                 _update_maven_versions_from_yaml(project, config)

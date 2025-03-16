@@ -21,4 +21,18 @@ projects:
       - dependency_name: pbworkspace-jar
         dependency_version: 1.21.0
       - dependency_name: pbworkspace-web
-        dependency_version: 1.21.0
+        dependency_version: 1.21.0      
+  - name: pbworkspacewcl
+    project_path: C:\eclipse-workspaces\csi\pbworkspacewcl
+    type: Angular
+    version: 1.21.0
+    version_file: package.json
+    tag: "{environment}-1.21.0-001"
+    reset_type: hard  
+  - name: pbandiactatreefp
+    project_path: C:\eclipse-workspaces\csi\pbandiactatreefp
+    type: Ant
+    version: 1.2.2
+    version_file: build.properties
+    tag: "{environment}-1.21.0-001"
+    reset_type: hard
