@@ -6,10 +6,65 @@ import sys
 import xml.etree.ElementTree as ET
 import re
 import click
+import platform
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+                    
+def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
+    """
+    Compiles a Maven project while skipping tests.
+    
+    :param project_path: Path to the Maven project.
+    :param maven_home: Path to the Maven home directory.
+    :param settings_file: Path to the Maven settings file.
+    :return: True if compilation succeeds, False otherwise.
+    """
+    is_windows = platform.system() == "Windows"
+    mvn_executable = os.path.join(maven_home, "bin", "mvn.cmd" if is_windows else "mvn")
+    command = [mvn_executable, "clean", "compile", "--settings", settings_file]
+    maven_compile_options = config.get("maven_compile_options", [])
+    install_index = command.index("compile")
+    command = command[:install_index + 1] + maven_compile_options + command[install_index + 1:]
+    
+    try:
+        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            return True
+        else:
+            print("Maven build failed:", result.stderr)
+            return False
+    except Exception as e:
+        print(f"Error running Maven: {e}")
+        return False
+        
+def _compile_angular_project(project_path) -> bool:
+    """
+    Checks if an Angular project compiles correctly.
+    :param project_path: Path to the Angular project.
+    :return: True if the project compiles successfully, False otherwise.
+    """
+    if not os.path.isdir(project_path):
+        print("Invalid project path.")
+        return False
+    
+    try:
+        # Run the Angular build command
+        result = subprocess.run(
+            ["C:/Program Files/nodejs/npm.cmd", "run", "build"], cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        if result.returncode == 0:
+            return True
+        else:
+            print("Build failed:", result.stderr)
+            return False
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        return False
+
+# Example usage:
+# print(check_angular_compile("/path/to/angular/project"))
 
 def _is_last_commit_pushed(project_path):
     try:
@@ -180,11 +235,21 @@ def _update_angular_version(path, version, version_file):
         file.write(content)
     print(f"Updated Angular version in {version_file_path} to {version}")
     logging.info(f"Updated Angular version in {version_file_path} to {version}")
-
-def _git_checkout_and_pull(path):
+    
+def checkout_and_pull():
     """Performs git checkout on master and pulls latest changes."""
-    _execute_command(["git", "checkout", "master"], path)
-    _execute_command(["git", "pull"], path)
+    with open("release-handler-config.yaml", "r") as file:
+        config = yaml.safe_load(file)   
+    try:
+        for project in config["projects"]:
+            if click.confirm(f"Check out and pull project {project['name']}?", default=True):
+                _execute_command(["git", "checkout", "master"], project['project_path'])
+                _execute_command(["git", "pull"], project['project_path'])
+                logging.info(f"Project {project['name']} checked out and pulled")  
+                print(f"Project {project['name']} checked out and pulled")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
 
 def update_versions():
     """Reads the YAML file and processes each project."""
@@ -193,7 +258,6 @@ def update_versions():
     
     try:
         for project in config["projects"]:
-            #_git_checkout_and_pull(project["project_path"])
             if project["type"] == "Maven":
                 _update_all_pom_properties(project["project_path"], config)
                 _update_maven_versions_from_yaml(project, config)
@@ -241,7 +305,7 @@ def delete_tags():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def commit_projects():
+def commit():
     """Commits changes for each project with confirmation."""
     try:
         with open("release-handler-config.yaml", "r") as file:
@@ -256,7 +320,7 @@ def commit_projects():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def reset_projects_last_commit():
+def remove_last_commit():
     """Resets the last commit based on reset-type."""
     try:
         with open("release-handler-config.yaml", "r") as file:
@@ -275,7 +339,7 @@ def reset_projects_last_commit():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
 
-def reset_projects():
+def reset():
     """Resets projects based on reset-type."""
     try:
         with open("release-handler-config.yaml", "r") as file:
@@ -286,6 +350,25 @@ def reset_projects():
                 _execute_command(["git", "reset", f"--{project['reset_type']}"] , project["project_path"])
                 logging.info(f"Resetted project {project['name']}")
                 print(f"Resetted project {project['name']}")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+               
+def compile_projects():
+    """Resets projects based on reset-type."""
+    try:
+        with open("release-handler-config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            
+        for project in config["projects"]:
+            if project["type"] == "Maven":
+                if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
+                    logging.info(f"Compiled Maven project {project['name']}")
+                    print(f"Compiled Maven project {project['name']}")
+            elif project["type"] == "Angular":
+                if _compile_angular_project(project["project_path"]):
+                    logging.info(f"Compiled Angular project {project['name']}")
+                    print(f"Compiled Angular project {project['name']}")
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -300,9 +383,13 @@ if __name__ == "__main__":
             delete_tags()
         elif sys.argv[1] == "commit_projects":
             commit_projects()               
-        elif sys.argv[1] == "reset_projects_last_commit":
-            reset_projects_last_commit()
-        elif sys.argv[1] == "reset_projects":
-            reset_projects()               
+        elif sys.argv[1] == "remove_last_commit":
+            remove_last_commit()
+        elif sys.argv[1] == "reset":
+            reset()
+        elif sys.argv[1] == "checkout_and_pull":
+            checkout_and_pull()    
+        elif sys.argv[1] == "compile_projects":
+            compile_projects()             
     else:
         print("Usage: python script.py <name>")
