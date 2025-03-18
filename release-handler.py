@@ -394,11 +394,11 @@ def compile_projects():
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
-            if project["type"] == "Mavend":
+            if project["type"] == "Maven":
                 if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
                     logging.info(f"Maven project {project['name']} compiled successfully")
                     print(f"Maven project {project['name']} compiled successfully")
-            elif project["type"] == "Angulard":
+            elif project["type"] == "Angular":
                 if _compile_angular_project(project["project_path"], config):
                     logging.info(f"Angular project {project['name']} compiled successfully")
                     print(f"Angular project {project['name']} compiled successfully")
