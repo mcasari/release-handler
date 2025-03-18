@@ -11,7 +11,7 @@ import platform
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
-                    
+                                        
 def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
     """
     Compiles a Maven project while skipping tests.
@@ -39,7 +39,7 @@ def _compile_maven_project(project_path, maven_home, settings_file, config) -> b
         print(f"Error running Maven: {e}")
         return False
         
-def _compile_angular_project(project_path) -> bool:
+def _compile_angular_project(project_path, config) -> bool:
     """
     Checks if an Angular project compiles correctly.
     :param project_path: Path to the Angular project.
@@ -51,8 +51,14 @@ def _compile_angular_project(project_path) -> bool:
     
     try:
         # Run the Angular build command
+        npm_command = os.path.join(config["nodejs_home"], "ng")
+        is_windows = platform.system() == "Windows"
+        if is_windows:
+            npm_command = os.path.join(config["nodejs_home"], "ng.cmd")
+        nodejs_compile_options = config.get("nodejs_compile_options", [])
+        npm_command_arr = [npm_command, "build"] + nodejs_compile_options;
         result = subprocess.run(
-            ["C:/Program Files/nodejs/npm.cmd", "run", "build"], cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            npm_command_arr, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
         )
         if result.returncode == 0:
             return True
@@ -65,6 +71,33 @@ def _compile_angular_project(project_path) -> bool:
 
 # Example usage:
 # print(check_angular_compile("/path/to/angular/project"))
+
+def _compile_ant_project(project_path, config) -> bool:
+    """
+    Compiles an Ant project.
+    
+    :param project_path: Path to the Ant project.
+    :param ant_home: Path to the Ant home directory.
+    :param ant_target: The Ant target to execute.
+    :return: True if compilation is successful, False otherwise.
+    """
+    ant_executable = os.path.join(config["ant_home"], 'bin', 'ant')
+    is_windows = platform.system() == "Windows"
+    if is_windows:
+        ant_executable = os.path.join(config["ant_home"], 'bin', 'ant.bat')
+    command = [ant_executable, config["ant_target"]] + config["ant_compile_options"]
+    
+    try:
+        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(result.stderr)
+        return result.returncode == 0
+    except Exception as e:
+        print(f"Error executing Ant: {e}")
+        return False
+
+# Example usage:
+# success = compile_ant_project("/path/to/project", "/path/to/ant", "build")
+# print("Compilation Successful" if success else "Compilation Failed")
 
 def _is_last_commit_pushed(project_path):
     try:
@@ -361,14 +394,18 @@ def compile_projects():
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
-            if project["type"] == "Maven":
+            if project["type"] == "Mavend":
                 if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
-                    logging.info(f"Compiled Maven project {project['name']}")
-                    print(f"Compiled Maven project {project['name']}")
-            elif project["type"] == "Angular":
-                if _compile_angular_project(project["project_path"]):
-                    logging.info(f"Compiled Angular project {project['name']}")
-                    print(f"Compiled Angular project {project['name']}")
+                    logging.info(f"Maven project {project['name']} compiled successfully")
+                    print(f"Maven project {project['name']} compiled successfully")
+            elif project["type"] == "Angulard":
+                if _compile_angular_project(project["project_path"], config):
+                    logging.info(f"Angular project {project['name']} compiled successfully")
+                    print(f"Angular project {project['name']} compiled successfully")
+            elif project["type"] == "Ant":
+                if _compile_ant_project(project["project_path"], config):
+                    logging.info(f"Ant project {project['name']} compiled successfully")
+                    print(f"Ant project {project['name']} compiled successfully")                                      
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
