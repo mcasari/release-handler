@@ -286,7 +286,8 @@ def checkout_and_pull():
     try:
         for project in config["projects"]:
             if click.confirm(f"Check out and pull project {project['name']}?", default=True):
-                _execute_command(["git", "checkout", "master"], project['project_path'])
+                branch = project["git_branch"]
+                _execute_command(["git", "checkout", branch], project['project_path'])
                 _execute_command(["git", "pull"], project['project_path'])
                 logging.info(f"Project {project['name']} checked out and pulled")  
                 print(f"Project {project['name']} checked out and pulled")
