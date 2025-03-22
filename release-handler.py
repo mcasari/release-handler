@@ -33,9 +33,11 @@ def _compile_maven_project(project_path, maven_home, settings_file, config) -> b
         if result.returncode == 0:
             return True
         else:
+            logging.info("Maven build failed:", result.stderr)
             print("Maven build failed:", result.stderr)
             return False
     except Exception as e:
+        logging.error(f"Error running Maven: {e})
         print(f"Error running Maven: {e}")
         return False
         
@@ -46,6 +48,7 @@ def _compile_angular_project(project_path, config) -> bool:
     :return: True if the project compiles successfully, False otherwise.
     """
     if not os.path.isdir(project_path):
+        logging.error("Invalid project path.")
         print("Invalid project path.")
         return False
     
@@ -63,9 +66,11 @@ def _compile_angular_project(project_path, config) -> bool:
         if result.returncode == 0:
             return True
         else:
+            logging.info("Build failed:", result.stderr)
             print("Build failed:", result.stderr)
             return False
     except FileNotFoundError as e:
+        logging.error(f"Error: {e}")
         print(f"Error: {e}")
         return False
 
@@ -89,9 +94,13 @@ def _compile_ant_project(project_path, config) -> bool:
     
     try:
         result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        logging.info(result.stderr)
         print(result.stderr)
+        if "failed" in result.stderr:
+            raise ValueError("Unexpected error during build: " + result.stderr)       
         return result.returncode == 0
     except Exception as e:
+        logging.error(f"Error executing Ant: {e}")
         print(f"Error executing Ant: {e}")
         return False
 
@@ -224,8 +233,8 @@ def _update_maven_versions_from_yaml(project, config):
     parent_version = project.get("parent_version")
     dependencies = project.get("dependencies", [])
     version = project.get("version")
-    if not project_path or not dependencies or not version:
-        raise ValueError("YAML file must contain 'project_path', 'dependencies', and 'version' fields.")
+    if not project_path or not dependencies or not version or not maven_namespace:
+        raise ValueError("YAML file must contain 'maven_namespace', 'project_path', 'parent_version', 'dependencies' and 'version' fields.")
     
     _update_maven_versions(project_path, dependencies, version, parent_version, maven_namespace)
 
@@ -242,6 +251,7 @@ def _execute_command(command, cwd):
     try:
         subprocess.run(command, cwd=cwd, check=True, shell=True)
         logging.info(f"Executed: {' '.join(command)} in {cwd}")
+        print(f"Executed: {' '.join(command)} in {cwd}")
     except subprocess.CalledProcessError as e:
         logging.error(f"Command failed: {e}")
         print(f"Command failed: {e}")
@@ -282,7 +292,7 @@ def checkout_and_pull():
                 print(f"Project {project['name']} checked out and pulled")
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
+        print(f"An error occurred: {e}")
 
 def update_versions():
     """Reads the YAML file and processes each project."""
@@ -394,17 +404,20 @@ def compile_projects():
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
-            if project["type"] == "Maven":
-                if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
-                    logging.info(f"Maven project {project['name']} compiled successfully")
-                    print(f"Maven project {project['name']} compiled successfully")
-            elif project["type"] == "Angular":
-                if _compile_angular_project(project["project_path"], config):
-                    logging.info(f"Angular project {project['name']} compiled successfully")
-                    print(f"Angular project {project['name']} compiled successfully")
-            elif project["type"] == "Ant":
-                if _compile_ant_project(project["project_path"], config):
-                    logging.info(f"Ant project {project['name']} compiled successfully")
+            if click.confirm(f"Compile {project['name']}?", default=True):
+                logging.info(f"Compiling project {project['name']} ...")
+                print(f"Compiling {project['name']} ...")
+                if project["type"] == "Mavenh":
+                    if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
+                        logging.info(f"Maven project {project['name']} compiled successfully")
+                        print(f"Maven project {project['name']} compiled successfully")
+                elif project["type"] == "Angularh":
+                    if _compile_angular_project(project["project_path"], config):
+                        logging.info(f"Angular project {project['name']} compiled successfully")
+                        print(f"Angular project {project['name']} compiled successfully")
+                elif project["type"] == "Ant":
+                    if _compile_ant_project(project["project_path"], config):
+                        logging.info(f"Ant project {project['name']} compiled successfully")
                     print(f"Ant project {project['name']} compiled successfully")                                      
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
@@ -427,6 +440,8 @@ if __name__ == "__main__":
         elif sys.argv[1] == "checkout_and_pull":
             checkout_and_pull()    
         elif sys.argv[1] == "compile_projects":
-            compile_projects()             
+            compile_projects()     
+        else
+             print("Wrong argument!")           
     else:
         print("Usage: python script.py <name>")
