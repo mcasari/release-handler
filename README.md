@@ -17,14 +17,14 @@ in the command line:
 
 The release_handler.py script defines the following functions:
 
-- update_versions
-- create_tags
-- delete_tags
-- commit
-- remove_last_commit
-- reset
-- checkout_and_pull
-- compile_check
+- update_versions: updates the versions of each projects with the values read on the configuration file
+- create_tags: creates tag for each project with the configured tag name
+- delete_tags: deletes on each project the tag named as in the configuration file, to perform a rollback on the tag operation
+- commit: performs a Git commit on each project
+- remove_last_commit: removes the last commit on each project, to rollback the commit operation defined above
+- reset: performs a Git reset on each project with type hard, soft or mixed, according to the value set in the configuration file
+- checkout_and_pull: performs a checkout on the branch defined in the configuration file and a pull from the remote Git repository
+- compile_check: performs a compilation of each project to check possible errors using the environment settings defined in the configuration file
 
 ```
 environment: TEST
