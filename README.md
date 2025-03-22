@@ -16,7 +16,18 @@ in the command line:
 
 ## How the script works
 
-'''
+The release_handler.py script defines the following functions:
+
+- update_versions
+- create_tags
+- delete_tags
+- commit
+- remove_last_commit
+- reset
+- checkout_and_pull
+- compile_check
+
+```
 environment: TEST
 release_notes:
   - "Note 1"
@@ -67,7 +78,7 @@ projects:
     version_file: build.properties
     tag: "{environment}-1.21.0-001"
     reset_type: hard
-'''
+```
 
 
 
