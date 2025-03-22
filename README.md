@@ -52,6 +52,7 @@ projects:
     version_file: pom.xml
     tag: "{environment}-1.21.0-001"
     reset_type: hard
+    git_branch: master
     parent_version: 1.21.0
     properties:
       - property_name: tar.version
@@ -69,7 +70,8 @@ projects:
     version: 1.21.0
     version_file: package.json
     tag: "{environment}-1.21.0-001"
-    reset_type: hard  
+    reset_type: hard
+    git_branch: master
   - name: antproject
     project_path: C:\eclipse-workspaces\csi\antproject
     type: Ant
@@ -77,6 +79,7 @@ projects:
     version_file: build.properties
     tag: "{environment}-1.21.0-001"
     reset_type: hard
+    git_branch: master
 ```
 
 
