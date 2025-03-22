@@ -301,13 +301,14 @@ def update_versions():
     
     try:
         for project in config["projects"]:
-            if project["type"] == "Maven":
-                _update_all_pom_properties(project["project_path"], config)
-                _update_maven_versions_from_yaml(project, config)
-            elif project["type"] == "Ant":
-                _update_ant_version(project["project_path"], project["version"], project["version_file"])
-            elif project["type"] == "Angular":
-                _update_angular_version(project["project_path"], project["version"], project["version_file"])
+            if click.confirm(f"Update version for project {project['name']}?"):
+                if project["type"] == "Maven":
+                    _update_all_pom_properties(project["project_path"], config)
+                    _update_maven_versions_from_yaml(project, config)
+                elif project["type"] == "Ant":
+                    _update_ant_version(project["project_path"], project["version"], project["version_file"])
+                elif project["type"] == "Angular":
+                    _update_angular_version(project["project_path"], project["version"], project["version_file"])
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -321,13 +322,14 @@ def create_tags():
         
         for project in resolved_config["projects"]:
             tag = project["tag"]
-            try:
-                _execute_command(["git", "tag", "-d", tag], project["project_path"])
-            except Exception as e:
-                pass
-            _execute_command(["git", "tag", tag], project["project_path"])
-            logging.info(f"Tagged {project['name']} with {tag}")
-            print(f"Tagged {project['name']} with {tag}")
+            if click.confirm(f"Create tag {tag} for project {project['name']}?"):
+                try:
+                    _execute_command(["git", "tag", "-d", tag], project["project_path"])
+                except Exception as e:
+                    pass
+                _execute_command(["git", "tag", tag], project["project_path"])
+                logging.info(f"Tagged {project['name']} with {tag}")
+                print(f"Tagged {project['name']} with {tag}")
     except Exception as ex:
         logging.error(f"An error occurred: {ex}")  
         print(f"An error occurred: {ex}")
@@ -341,9 +343,10 @@ def delete_tags():
         
         for project in resolved_config["projects"]:
             tag = project["tag"]
-            _execute_command(["git", "tag", "-d", tag], project["project_path"])
-            logging.info(f"Deleted tag {tag}")
-            print(f"Deleted tag {tag}")
+            if click.confirm(f"Delete tag {tag} for project {project['name']}?"):
+                _execute_command(["git", "tag", "-d", tag], project["project_path"])
+                logging.info(f"Deleted tag {tag}")
+                print(f"Deleted tag {tag}")
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -355,8 +358,8 @@ def commit():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
-            if click.confirm(f"Commit changes for {project['name']}?"):
-                _execute_command(["git", "commit", "-am", f"Updated version/tag for {project['name']}"] , project["project_path"])
+            if click.confirm(f"Commit changes for project {project['name']}?"):
+                _execute_command(["git", "commit", "-am", f"Commit project {project['name']}"] , project["project_path"])
                 logging.info(f"Committed project {project['name']}")
                 print(f"Committed project {project['name']}")
     except Exception as e:
@@ -370,7 +373,7 @@ def remove_last_commit():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
-            if click.confirm(f"Reset last commit for {project['name']}?", default=True):
+            if click.confirm(f"Reset last commit for {project['name']}?", default=False):
                 if not _is_last_commit_pushed(project["project_path"]):
                     _execute_command(["git", "reset", f"--{project['reset_type']}", "HEAD~1"] , project["project_path"])
                     logging.info(f"Resetted last commit for project {project['name']}")
