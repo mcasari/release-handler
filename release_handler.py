@@ -37,7 +37,7 @@ def _compile_maven_project(project_path, maven_home, settings_file, config) -> b
             print("Maven build failed:", result.stderr)
             return False
     except Exception as e:
-        logging.error(f"Error running Maven: {e})
+        logging.error(f"Error running Maven: {e}")
         print(f"Error running Maven: {e}")
         return False
         
@@ -281,7 +281,7 @@ def _update_angular_version(path, version, version_file):
     
 def checkout_and_pull():
     """Performs git checkout on master and pulls latest changes."""
-    with open("release-handler-config.yaml", "r") as file:
+    with open("release_handler_config.yaml", "r") as file:
         config = yaml.safe_load(file)   
     try:
         for project in config["projects"]:
@@ -296,7 +296,7 @@ def checkout_and_pull():
 
 def update_versions():
     """Reads the YAML file and processes each project."""
-    with open("release-handler-config.yaml", "r") as file:
+    with open("release_handler_config.yaml", "r") as file:
         config = yaml.safe_load(file)
     
     try:
@@ -315,7 +315,7 @@ def update_versions():
 def create_tags():
     """Tags each project with the appropriate tag name."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             resolved_config = _resolve_placeholders(config)
         
@@ -335,7 +335,7 @@ def create_tags():
 def delete_tags():
     """Delete tag of each project with the appropriate tag name."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             resolved_config = _resolve_placeholders(config)
         
@@ -351,7 +351,7 @@ def delete_tags():
 def commit():
     """Commits changes for each project with confirmation."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
@@ -366,7 +366,7 @@ def commit():
 def remove_last_commit():
     """Resets the last commit based on reset-type."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
@@ -385,7 +385,7 @@ def remove_last_commit():
 def reset():
     """Resets projects based on reset-type."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
@@ -397,10 +397,10 @@ def reset():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
                
-def compile_projects():
+def compile_check():
     """Resets projects based on reset-type."""
     try:
-        with open("release-handler-config.yaml", "r") as file:
+        with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
@@ -418,7 +418,7 @@ def compile_projects():
                 elif project["type"] == "Ant":
                     if _compile_ant_project(project["project_path"], config):
                         logging.info(f"Ant project {project['name']} compiled successfully")
-                    print(f"Ant project {project['name']} compiled successfully")                                      
+                        print(f"Ant project {project['name']} compiled successfully")                                      
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -431,17 +431,17 @@ if __name__ == "__main__":
             create_tags() 
         elif sys.argv[1] == "delete_tags":
             delete_tags()
-        elif sys.argv[1] == "commit_projects":
-            commit_projects()               
+        elif sys.argv[1] == "commit":
+            commit()               
         elif sys.argv[1] == "remove_last_commit":
             remove_last_commit()
         elif sys.argv[1] == "reset":
             reset()
         elif sys.argv[1] == "checkout_and_pull":
             checkout_and_pull()    
-        elif sys.argv[1] == "compile_projects":
-            compile_projects()     
-        else
+        elif sys.argv[1] == "compile_check":
+            compile_check()     
+        else:
              print("Wrong argument!")           
     else:
-        print("Usage: python script.py <name>")
+        raise ValueError("No arguments provided! Usage: release_handler.py <one of update_versions, create_tags, delete_tags, delete_tags, commit, remove_last_commit, reset, checkout_and_pull, compile_check>")
