@@ -407,11 +407,11 @@ def compile_projects():
             if click.confirm(f"Compile {project['name']}?", default=True):
                 logging.info(f"Compiling project {project['name']} ...")
                 print(f"Compiling {project['name']} ...")
-                if project["type"] == "Mavenh":
+                if project["type"] == "Maven":
                     if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
                         logging.info(f"Maven project {project['name']} compiled successfully")
                         print(f"Maven project {project['name']} compiled successfully")
-                elif project["type"] == "Angularh":
+                elif project["type"] == "Angular":
                     if _compile_angular_project(project["project_path"], config):
                         logging.info(f"Angular project {project['name']} compiled successfully")
                         print(f"Angular project {project['name']} compiled successfully")
