@@ -1,7 +1,6 @@
 # release-handler
 
-Python script named release_handler.py with functions aimed at handling versioning and Git committing, pulling, resetting of a configured set of Maven, Ant and Angular projects. 
-The projects are configured in a release_handler.yaml file.
+Python script named release_handler.py with functions aimed at handling versioning and check compilation of a configured set of Maven, Ant and Angular projects. It also allows to perform several Git operations on all the projects like commit, checkout, pull and reset. The projects are configured in a release_handler.yaml file.
 
 ## Prerequisites
 
