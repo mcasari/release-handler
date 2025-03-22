@@ -1,7 +1,7 @@
 # release-handler
 
-Python script named release_handler.py with functions aimed at handling versioning and Git committing, pulling, resetting of a configured set of Maven, Ant and Angular projects.
- 
+Python script named release_handler.py with functions aimed at handling versioning and Git committing, pulling, resetting of a configured set of Maven, Ant and Angular projects. 
+The projects are configured in a release_handler.yaml file.
 
 ## Prerequisites
 
@@ -27,8 +27,5 @@ python release_handler.py projects.yaml reset_lastcommit
 This script automates version updates, tagging, committing, and pushing, ensuring logging and user confirmation where needed.
 
 Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-
-
 
 
