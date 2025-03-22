@@ -1,6 +1,6 @@
 # release-handler
 
-Python script named release_handler.py with functions aimed at handling versioning and check compilation of a configured set of Maven, Ant and Angular projects. It also allows to perform several Git operations on all the projects like commit, checkout, pull and reset. The projects are configured in a release_handler.yaml file.
+Python script named release_handler.py with functions aimed at handling versioning, tagging and check compilation of a configured set of Maven, Ant and Angular projects. It also allows to perform several Git operations on all the projects like commit, checkout, pull and reset. The projects are configured in a release_handler.yaml file.
 
 ## Prerequisites
 
@@ -25,6 +25,8 @@ The release_handler.py script defines the following functions:
 - reset: performs a Git reset on each project with type hard, soft or mixed, according to the value set in the configuration file
 - checkout_and_pull: performs a checkout on the branch defined in the configuration file and a pull from the remote Git repository
 - compile_check: performs a compilation of each project to check possible errors using the environment settings defined in the configuration file
+
+Here is an example of the configuration file content:
 
 ```
 environment: TEST
@@ -82,19 +84,11 @@ projects:
     git_branch: master
 ```
 
+You can execute each funtion with a command like this, provided that the release_handler.yaml file is in the same directory of the script:
 
+`python release_handler.py update_versions`
 
+or in a shorter way:
 
-You can execute the script with different commands:
-
-python release_handler.py projects.yaml process_projects
-python release_handler.py projects.yaml tag_projects
-python release_handler.py projects.yaml commit_projects
-python release_handler.py projects.yaml push_projects
-python release_handler.py projects.yaml reset_lastcommit
-
-This script automates version updates, tagging, committing, and pushing, ensuring logging and user confirmation where needed.
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
+`release_handler.py update_versions`
 
