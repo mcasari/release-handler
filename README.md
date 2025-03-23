@@ -26,7 +26,7 @@ The release_handler.py script defines the following functions:
 - checkout_and_pull: performs a checkout on the branch defined in the configuration file and a pull from the remote Git repository
 - compile_check: performs a compilation of each project to check possible errors using the environment settings defined in the configuration file
 
-Here is an example of the configuration file content:
+Here is an example of configuration file content:
 
 ```
 environment: TEST
