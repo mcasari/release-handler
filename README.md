@@ -17,7 +17,7 @@ in the command line:
 
 The release_handler.py script defines the following functions:
 
-- update_versions: updates the versions of each projects with the values read on the configuration file
+- update_versions: updates the versions of each projects based on the configuration
 - create_tags: creates tag for each project with the configured tag name
 - delete_tags: deletes on each project the tag named as in the configuration file, to perform a rollback on the tag operation
 - commit: performs a Git commit on each project
