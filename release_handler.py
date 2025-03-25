@@ -11,6 +11,7 @@ import platform
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+                    
                                         
 def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
     """
@@ -302,7 +303,7 @@ def update_versions():
     
     try:
         for project in config["projects"]:
-            if click.confirm(f"Update version for project {project['name']}?"):
+            if click.confirm(f"Update version for project {project['name']}?", default=True):
                 if project["type"] == "Maven":
                     _update_all_pom_properties(project["project_path"], config)
                     _update_maven_versions_from_yaml(project, config)
@@ -323,7 +324,7 @@ def create_tags():
         
         for project in resolved_config["projects"]:
             tag = project["tag"]
-            if click.confirm(f"Create tag {tag} for project {project['name']}?"):
+            if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
                 try:
                     _execute_command(["git", "tag", "-d", tag], project["project_path"])
                 except Exception as e:
@@ -344,7 +345,7 @@ def delete_tags():
         
         for project in resolved_config["projects"]:
             tag = project["tag"]
-            if click.confirm(f"Delete tag {tag} for project {project['name']}?"):
+            if click.confirm(f"Delete tag {tag} for project {project['name']}?", default=True):
                 _execute_command(["git", "tag", "-d", tag], project["project_path"])
                 logging.info(f"Deleted tag {tag}")
                 print(f"Deleted tag {tag}")
@@ -359,7 +360,7 @@ def commit():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
-            if click.confirm(f"Commit changes for project {project['name']}?"):
+            if click.confirm(f"Commit changes for project {project['name']}?", default=False):
                 _execute_command(["git", "commit", "-am", f"Commit project {project['name']}"] , project["project_path"])
                 logging.info(f"Committed project {project['name']}")
                 print(f"Committed project {project['name']}")
