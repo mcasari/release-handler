@@ -286,6 +286,10 @@ def checkout_and_pull():
         config = yaml.safe_load(file)   
     try:
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Check out and pull project {project['name']}?", default=True):
                 branch = project["git_branch"]
                 _execute_command(["git", "checkout", branch], project['project_path'])
@@ -303,6 +307,10 @@ def update_versions():
     
     try:
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Update version for project {project['name']}?", default=True):
                 if project["type"] == "Maven":
                     _update_all_pom_properties(project["project_path"], config)
@@ -323,6 +331,10 @@ def create_tags():
             resolved_config = _resolve_placeholders(config)
         
         for project in resolved_config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             tag = project["tag"]
             if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
                 try:
@@ -344,6 +356,10 @@ def delete_tags():
             resolved_config = _resolve_placeholders(config)
         
         for project in resolved_config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             tag = project["tag"]
             if click.confirm(f"Delete tag {tag} for project {project['name']}?", default=True):
                 _execute_command(["git", "tag", "-d", tag], project["project_path"])
@@ -360,6 +376,10 @@ def commit():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Commit changes for project {project['name']}?", default=False):
                 _execute_command(["git", "commit", "-am", f"Commit project {project['name']}"] , project["project_path"])
                 logging.info(f"Committed project {project['name']}")
@@ -375,6 +395,10 @@ def remove_last_commit():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Reset last commit for {project['name']}?", default=False):
                 if not _is_last_commit_pushed(project["project_path"]):
                     _execute_command(["git", "reset", f"--{project['reset_type']}", "HEAD~1"] , project["project_path"])
@@ -394,6 +418,10 @@ def reset():
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Reset {project['name']}?", default=True):
                 _execute_command(["git", "reset", f"--{project['reset_type']}"] , project["project_path"])
                 logging.info(f"Resetted project {project['name']}")
@@ -409,6 +437,10 @@ def compile_check():
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
             if click.confirm(f"Compile {project['name']}?", default=True):
                 logging.info(f"Compiling project {project['name']} ...")
                 print(f"Compiling {project['name']} ...")
