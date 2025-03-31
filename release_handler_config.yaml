@@ -1,4 +1,4 @@
-environment: TEST
+environment: SVILUPPO
 
 release_notes:
   - "Rilascio : PBANDI 15.18.0"
@@ -64,7 +64,7 @@ projects:
     tag: "{environment}-1.3.3-001"
     reset_type: hard
     git_branch: master
-    skip: true
+    skip: false
     parent_version: 1.3.3
     properties:
       - property_name: tar.version
@@ -85,7 +85,7 @@ projects:
     tag: "{environment}-1.21.0-001"
     reset_type: hard
     git_branch: master
-    skip: true
+    skip: false
     parent_version: 1.21.0
     properties:
       - property_name: tar.version

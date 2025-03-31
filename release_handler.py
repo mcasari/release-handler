@@ -11,8 +11,66 @@ import platform
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
-                    
-                                        
+ 
+def _list_git_changes(project_path):
+    """
+    Lists all tracked changes (modified, added, deleted) in a Git repository.
+    
+    :param project_path: Path to the Git project.
+    :return: A dictionary containing lists of modified, added, and deleted files.
+    """
+    if not os.path.isdir(project_path):
+        raise ValueError("Invalid project path")
+    
+    git_command = ["git", "status", "--porcelain"]
+    try:
+        result = subprocess.run(git_command, cwd=project_path, capture_output=True, text=True, check=True)
+        changes = result.stdout.strip().split('\n')
+        
+        modified = []
+        added = []
+        deleted = []
+        
+        for change in changes:
+            if change:
+                status, file = change[:2].strip(), change[3:].strip()
+                if status in ('M', 'MM'):
+                    modified.append(file)
+                elif status in ('A', 'AM'):
+                    added.append(file)
+                elif status in ('D', 'DM'):
+                    deleted.append(file)
+        
+        return {"modified": modified, "added": added, "deleted": deleted}
+    
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Error executing git command: {e}")
+        
+def _is_tag_pushed(project_path, tag_name) -> bool:
+    """
+    Checks if a given tag is already pushed to the remote repository.
+    
+    :param project_path: Path to the local git repository.
+    :param tag_name: Name of the tag to check.
+    :return: True if the tag is pushed, False otherwise.
+    """
+    try:
+        # Get the list of tags from the remote
+        result = subprocess.run(
+            ["git", "ls-remote", "--tags", "origin"],
+            cwd=project_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            check=True
+        )
+        
+        # Check if the tag exists in the remote
+        return any(f"refs/tags/{tag_name}" in line for line in result.stdout.splitlines())
+    except subprocess.CalledProcessError as e:
+        print(f"Error checking remote tags: {e.stderr}")
+        return False
+        
 def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
     """
     Compiles a Maven project while skipping tests.
@@ -350,7 +408,6 @@ def create_tags():
         
         
 def push_tags():
-    """Tags each project with the appropriate tag name."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
@@ -364,11 +421,15 @@ def push_tags():
             tag = project["tag"]
             if click.confirm(f"Push tag {tag} for project {project['name']}?", default=True):
                 try:
+                    if _is_tag_pushed(project["project_path"], tag):
+                        logging.info(f"The {tag} for project {project['name']} is already pushed")
+                        print(f"The {tag} for project {project['name']} is already pushed")
+                        continue
                     _execute_command(["git", "push", "origin", "tag", tag], project["project_path"])
                 except Exception as e:
                     pass
-                logging.info(f"Pushed {project['name']} with {tag}")
-                print(f"Pushed {project['name']} with {tag}")
+                logging.info(f"Pushed tag {tag} for project {project['name']}")
+                print(f"Pushed tag {tag} for project {project['name']}")
     except Exception as ex:
         logging.error(f"An error occurred: {ex}")  
         print(f"An error occurred: {ex}")
@@ -394,6 +455,31 @@ def delete_tags():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
+def delete_tags_remotely(remote = "origin"):
+    """Delete tag of each project with the appropriate tag name."""
+    try:
+        with open("release_handler_config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            resolved_config = _resolve_placeholders(config)
+        
+        for project in resolved_config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
+            tag = project["tag"]
+            if click.confirm(f"Delete tag {tag} remotely for project {project['name']}?", default=True):
+                if not _is_tag_pushed(project["project_path"], tag):
+                    logging.info(f"The {tag} for project {project['name']} does not exist remotely")
+                    print(f"The {tag} for project {project['name']} does not exist remotely")
+                    continue
+                _execute_command(["git", "push", "--delete", remote, tag], project["project_path"])
+                logging.info(f"Deleted tag {tag} remotely")
+                print(f"Deleted tag {tag} remotely")
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}") 
+        
 def commit():
     """Commits changes for each project with confirmation."""
     try:
@@ -405,6 +491,9 @@ def commit():
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            changes =_list_git_changes(project["project_path"])
+            logging.info(f"Changes to commit {changes}")
+            print(f"Changes to commit {changes}")
             if click.confirm(f"Commit changes for project {project['name']}?", default=False):
                 _execute_command(["git", "commit", "-am", f"Update project with version {project['version']}"] , project["project_path"])
                 logging.info(f"Update project with version {project['version']}")
@@ -493,6 +582,8 @@ if __name__ == "__main__":
             create_tags() 
         elif sys.argv[1] == "delete_tags":
             delete_tags()
+        elif sys.argv[1] == "delete_tags_remotely":
+            delete_tags_remotely()
         elif sys.argv[1] == "push_tags":
             push_tags()     
         elif sys.argv[1] == "commit":
