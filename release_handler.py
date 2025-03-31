@@ -347,6 +347,31 @@ def create_tags():
     except Exception as ex:
         logging.error(f"An error occurred: {ex}")  
         print(f"An error occurred: {ex}")
+        
+        
+def push_tags():
+    """Tags each project with the appropriate tag name."""
+    try:
+        with open("release_handler_config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            resolved_config = _resolve_placeholders(config)
+        
+        for project in resolved_config["projects"]:
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
+            tag = project["tag"]
+            if click.confirm(f"Push tag {tag} for project {project['name']}?", default=True):
+                try:
+                    _execute_command(["git", "push", "origin", "tag", tag], project["project_path"])
+                except Exception as e:
+                    pass
+                logging.info(f"Pushed {project['name']} with {tag}")
+                print(f"Pushed {project['name']} with {tag}")
+    except Exception as ex:
+        logging.error(f"An error occurred: {ex}")  
+        print(f"An error occurred: {ex}")
                 
 def delete_tags():
     """Delete tag of each project with the appropriate tag name."""
@@ -381,9 +406,9 @@ def commit():
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
             if click.confirm(f"Commit changes for project {project['name']}?", default=False):
-                _execute_command(["git", "commit", "-am", f"Commit project {project['name']}"] , project["project_path"])
-                logging.info(f"Committed project {project['name']}")
-                print(f"Committed project {project['name']}")
+                _execute_command(["git", "commit", "-am", f"Update project with version {project['version']}"] , project["project_path"])
+                logging.info(f"Update project with version {project['version']}")
+                print(f"Update project with version {project['version']}")
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -468,6 +493,8 @@ if __name__ == "__main__":
             create_tags() 
         elif sys.argv[1] == "delete_tags":
             delete_tags()
+        elif sys.argv[1] == "push_tags":
+            push_tags()     
         elif sys.argv[1] == "commit":
             commit()               
         elif sys.argv[1] == "remove_last_commit":
@@ -477,7 +504,7 @@ if __name__ == "__main__":
         elif sys.argv[1] == "checkout_and_pull":
             checkout_and_pull()    
         elif sys.argv[1] == "compile_check":
-            compile_check()     
+            compile_check()             
         else:
              print("Wrong argument!")           
     else:
