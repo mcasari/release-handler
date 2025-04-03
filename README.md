@@ -55,6 +55,7 @@ projects:
     tag: "{environment}-1.21.0-001"
     reset_type: hard
     git_branch: master
+    skip: false
     parent_version: 1.21.0
     properties:
       - property_name: tar.version
@@ -74,6 +75,7 @@ projects:
     tag: "{environment}-1.21.0-001"
     reset_type: hard
     git_branch: master
+    skip: false
   - name: antproject
     project_path: C:\eclipse-workspaces\csi\antproject
     type: Ant
@@ -82,6 +84,7 @@ projects:
     tag: "{environment}-1.21.0-001"
     reset_type: hard
     git_branch: master
+    skip: false
 ```
 
 You can execute each funtion with a command like the following, provided that the release_handler.yaml file is in the same directory of the script:
