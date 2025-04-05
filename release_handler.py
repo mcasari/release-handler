@@ -360,12 +360,14 @@ def _update_angular_version(path, version, version_file):
     print(f"Updated Angular version in {version_file_path} to {version}")
     logging.info(f"Updated Angular version in {version_file_path} to {version}")
     
-def checkout_and_pull():
+def checkout_and_pull(project_filter = ''):
     """Performs git checkout on master and pulls latest changes."""
     with open("release_handler_config.yaml", "r") as file:
         config = yaml.safe_load(file)   
     try:
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -380,13 +382,15 @@ def checkout_and_pull():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}")
 
-def update_versions():
+def update_versions(project_filter = ''):
     """Reads the YAML file and processes each project."""
     with open("release_handler_config.yaml", "r") as file:
         config = yaml.safe_load(file)
     
     try:
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -403,7 +407,7 @@ def update_versions():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
     
-def create_tags():
+def create_tags(project_filter = ''):
     """Tags each project with the appropriate tag name."""
     try:
         with open("release_handler_config.yaml", "r") as file:
@@ -411,6 +415,8 @@ def create_tags():
             resolved_config = _resolve_placeholders(config)
         
         for project in resolved_config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -429,13 +435,15 @@ def create_tags():
         print(f"An error occurred: {ex}")
         
         
-def push_tags():
+def push_tags(project_filter = ''):
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             resolved_config = _resolve_placeholders(config)
         
         for project in resolved_config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -456,7 +464,7 @@ def push_tags():
         logging.error(f"An error occurred: {ex}")  
         print(f"An error occurred: {ex}")
                 
-def delete_tags():
+def delete_tags(project_filter = ''):
     """Delete tag of each project with the appropriate tag name."""
     try:
         with open("release_handler_config.yaml", "r") as file:
@@ -464,6 +472,8 @@ def delete_tags():
             resolved_config = _resolve_placeholders(config)
         
         for project in resolved_config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -481,14 +491,21 @@ def delete_tags():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def delete_tags_remotely(remote = "origin"):
+def delete_tags_remotely(project_filter = ''):
     """Delete tag of each project with the appropriate tag name."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             resolved_config = _resolve_placeholders(config)
         
+        remote = config["remote_git_repo"]
+        print(f"remote repo {remote}")
+        if not remote:
+            remote = "origin"
+        print(f"project_filter {project_filter}")
         for project in resolved_config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -506,13 +523,15 @@ def delete_tags_remotely(remote = "origin"):
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def commit():
+def commit(project_filter = ''):
     """Commits changes for each project with confirmation."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -528,13 +547,15 @@ def commit():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
         
-def remove_last_commit():
+def remove_last_commit(project_filter = ''):
     """Resets the last commit based on reset-type."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue              
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -551,13 +572,15 @@ def remove_last_commit():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
 
-def reset():
+def reset(project_filter = ''):
     """Resets projects based on reset-type."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
         
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -570,13 +593,15 @@ def reset():
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
                
-def compile_check():
+def compile_check(project_filter = ''):
     """Resets projects based on reset-type."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             
         for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue        
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
@@ -603,25 +628,55 @@ def compile_check():
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "update_versions":
-            update_versions()
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                update_versions(sys.argv[2])
+            else:
+                update_versions()
         elif sys.argv[1] == "create_tags":
-            create_tags() 
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                create_tags(sys.argv[2])
+            else:
+                create_tags()
         elif sys.argv[1] == "delete_tags":
-            delete_tags()
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                delete_tags(sys.argv[2])
+            else:
+                delete_tags()
         elif sys.argv[1] == "delete_tags_remotely":
-            delete_tags_remotely()
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                delete_tags_remotely(sys.argv[2])
+            else:
+                delete_tags_remotely()
         elif sys.argv[1] == "push_tags":
-            push_tags()     
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                push_tags(sys.argv[2])
+            else:
+                push_tags()    
         elif sys.argv[1] == "commit":
-            commit()               
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                commit(sys.argv[2])
+            else:
+                commit()                  
         elif sys.argv[1] == "remove_last_commit":
-            remove_last_commit()
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                remove_last_commit(sys.argv[2])
+            else:
+                remove_last_commit() 
         elif sys.argv[1] == "reset":
-            reset()
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                reset(sys.argv[2])
+            else:
+                reset() 
         elif sys.argv[1] == "checkout_and_pull":
-            checkout_and_pull()    
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                checkout_and_pull(sys.argv[2])
+            else:
+                checkout_and_pull()   
         elif sys.argv[1] == "compile_check":
-            compile_check()             
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                compile_check(sys.argv[2])
+            else:
+                compile_check()            
         else:
              print("Wrong argument!")           
     else:
