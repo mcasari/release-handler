@@ -11,6 +11,29 @@ import platform
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+                    
+def _is_tag_committed(tag_name, repo_path):
+    """
+    Check if a given Git tag exists in the repository.
+
+    Args:
+        tag_name (str): The name of the tag to check.
+        repo_path (str): Path to the Git repository (default is current directory).
+
+    Returns:
+        bool: True if the tag exists (i.e., is committed), False otherwise.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', '--verify', f'refs/tags/{tag_name}'],
+            cwd=repo_path,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return result.returncode == 0
+    except Exception as e:
+        print(f"Error checking tag: {e}")
+        return False        
  
 def _list_git_changes(project_path):
     """
@@ -394,10 +417,10 @@ def create_tags():
                 continue
             tag = project["tag"]
             if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
-                try:
-                    _execute_command(["git", "tag", "-d", tag], project["project_path"])
-                except Exception as e:
-                    pass
+                if _is_tag_committed(tag, project["project_path"]):
+                    logging.info(f"Tag {tag} of project {project['name']} already commited")
+                    print(f"Tag {tag} of project {project['name']} already commited")
+                    continue
                 _execute_command(["git", "tag", tag], project["project_path"])
                 logging.info(f"Tagged {project['name']} with {tag}")
                 print(f"Tagged {project['name']} with {tag}")
@@ -447,6 +470,10 @@ def delete_tags():
                 continue
             tag = project["tag"]
             if click.confirm(f"Delete tag {tag} for project {project['name']}?", default=True):
+                if not _is_tag_committed(tag, project["project_path"]):
+                    logging.info(f"There is no tag {tag} for project {project['name']}")
+                    print(f"There is no tag {tag} for project {project['name']}")
+                    continue
                 _execute_command(["git", "tag", "-d", tag], project["project_path"])
                 logging.info(f"Deleted tag {tag}")
                 print(f"Deleted tag {tag}")
