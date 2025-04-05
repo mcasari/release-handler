@@ -1,63 +1,26 @@
-environment: SVILUPPO
+environment: PROD
 
 release_notes:
-  - "Rilascio : PBANDI 15.18.0"
-  - "pbweb 1.21.0"
-  - "pbwebwcl 1.21.0"
-  - "pbweberog 1.21.0"
-  - "pbweberogwcl 1.21.0"
-  - "pbworkspace 1.21.0"
-  - "pbworkspacewcl 1.21.0"
-  - "pbwebrce 1.21.0"
-  - "pbwebrcewcl 1.21.0"
-  - "pbgestfinbo 1.21.0"
-  - "pbgestfinbowcl 1.21.0"
-  - "pbwebbo 1.21.0"
-  - "pbwebbowcl 1.21.0"
-  - "pbwebcert 1.21.0"
-  - "pbwebcertwcl 1.21.0"  
-  - "pbwebfin 1.21.0" 
-  - "pbwebfinwcl 1.21.0" 
-  - ""
-  - "pbservwelfare 1.3.3"
-  - ""
-  - "pbandirnabtc 1.1.1 "
-  - "pbandiprtfp 1.5.4"
-  - "pbandidb	3.36.8"
-  - "pbandidbrw	3.31.7"
-  - "pbandidbro	2.30.7"
-  - "caricamentoxmlammco 1.1.6"
-  - "caricamentoxmlistr	1.2.6"
-  - "utilityonline	2.6.3"
-  - "Creare nuova ricetta per tutti gli ambienti enterprise_pbandi-1.40.0.sh"
-  - "Buildare ricetta per inserirla in repo nel percorso: enterprise/pbandi/CB-release/15.18.0/enterprise_pbandi-1.40.0.sh"
-  - "Aggiornare documenti unità di installazione"
-  - "Inserire documento SRA"
-  - "Inserire richiesta"
-  - "Una volta ricevuta l'approvazione della documentazion con il relativo referente:"
-  - "Scaricare documentazione selezionando il rilascio nella sezione richiesta rilascio e spostarla su area condivisa \\\\svm-nmsf.domnt.csi.it\\jenkins_rilasci\\pbandi\\DOC\\prod-rp-01"
-  - "Taggare componenti per collaudo e fare il build su jenkins"
-  - "Controllare pacchetti e documentazione in https://repo.ecosis.csi.it/artifactory/webapp/#/artifacts/browse/tree/General/staging/pbandi"
-  - "Eseguire validazione del rilascio nella sezione 'richiesta rilascio'"
-  - "Da Intanag confermare disponibilità del software"
+  - "Note 1"
+  - "Note 2"
   
 maven_home: C:/APPLICATIONS/apache-maven-3.9.6
-maven_settings: C:/Users/macasari/.m2/settingsCSI.xml
+maven_settings: C:/Users/macasari/.m2/settings.xml
 maven_compile_options:
     - "-Dpostfix=''"
     - "-DskipTests"  
 maven_namespace: http://maven.apache.org/POM/4.0.0
 nodejs_home: C:/Program Files/nodejs
 nodejs_compile_options:
-    - "--configuration=prod-rp-01" 
+    - "--configuration=prod-01" 
 ant_home: C:/APPLICATIONS/apache-ant-1.6.2_ivy2
 ant_target: distribution 
 ant_compile_options:
-    - "-Dtarget=prod-rp-01" 
+    - "-Dtarget=prod-01" 
     
 projects:
-  - name: pbservwelfare
-    project_path: C:\eclipse-workspaces\csi\pbservwelfare
+  - name: mavenproject
+    project_path: C:\eclipse-workspaces\mavenproject
     type: Maven
     version: 1.3.3
     version_file: pom.xml
@@ -70,36 +33,15 @@ projects:
       - property_name: tar.version
         property_value: 1.3.3
     dependencies:
-      - dependency_name: pbservwelfare-ear
+      - dependency_name: mavenproject-ear
         dependency_version: 1.3.3
-      - dependency_name: pbservwelfare-jar
+      - dependency_name: mavenproject-jar
         dependency_version: 1.3.3
-      - dependency_name: pbservwelfare-web
+      - dependency_name: mavenproject-web
         dependency_version: 1.3.3    
         
-  - name: pbweb
-    project_path: C:\eclipse-workspaces\csi\pbweb
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbweb-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbweb-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbweb-web
-        dependency_version: 1.21.0     
-        
-  - name: pbwebwcl
-    project_path: C:\eclipse-workspaces\csi\pbwebwcl
+  - name: angularproject
+    project_path: C:\eclipse-workspaces\angularproject
     type: Angular
     version: 1.21.0
     version_file: package.json
@@ -107,237 +49,9 @@ projects:
     reset_type: hard
     git_branch: master
     skip: false
-    
-    
-  - name: pbweberog
-    project_path: C:\eclipse-workspaces\csi\pbweberog
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbweberog-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbweberog-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbweberog-web
-        dependency_version: 1.21.0     
-        
-  - name: pbweberogwcl
-    project_path: C:\eclipse-workspaces\csi\pbweberogwcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-     
-  - name: pbworkspace
-    project_path: C:\eclipse-workspaces\csi\pbworkspace
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbworkspace-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbworkspace-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbworkspace-web
-        dependency_version: 1.21.0     
-        
-  - name: pbworkspacewcl
-    project_path: C:\eclipse-workspaces\csi\pbworkspacewcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbwebrce
-    project_path: C:\eclipse-workspaces\csi\pbwebrce
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbwebrce-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbwebrce-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbwebrce-web
-        dependency_version: 1.21.0     
-        
-  - name: pbwebrcewcl
-    project_path: C:\eclipse-workspaces\csi\pbwebrcewcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbgestfinbo
-    project_path: C:\eclipse-workspaces\csi\pbgestfinbo
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbgestfinbo-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbgestfinbo-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbgestfinbo-web
-        dependency_version: 1.21.0     
-        
-  - name: pbgestfinbowcl
-    project_path: C:\eclipse-workspaces\csi\pbgestfinbowcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbwebbo
-    project_path: C:\eclipse-workspaces\csi\pbwebbo
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbwebbo-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbwebbo-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbwebbo-web
-        dependency_version: 1.21.0     
-        
-  - name: pbwebbowcl
-    project_path: C:\eclipse-workspaces\csi\pbwebbowcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbwebcert
-    project_path: C:\eclipse-workspaces\csi\pbwebcert
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbwebcert-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbwebcert-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbwebcert-web
-        dependency_version: 1.21.0     
-        
-  - name: pbwebcertwcl
-    project_path: C:\eclipse-workspaces\csi\pbwebcertwcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbwebfin
-    project_path: C:\eclipse-workspaces\csi\pbwebfin
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: pbwebfin-ear
-        dependency_version: 1.21.0
-      - dependency_name: pbwebfin-jar
-        dependency_version: 1.21.0
-      - dependency_name: pbwebfin-web
-        dependency_version: 1.21.0     
-        
-  - name: pbwebfinwcl
-    project_path: C:\eclipse-workspaces\csi\pbwebfinwcl
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbandirnabtc
-    project_path: C:\eclipse-workspaces\csi\pbandirnabtc
-    type: Ant
-    version: 1.1.1
-    version_file: build.properties
-    tag: "{environment}-1.1.1-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    
-  - name: pbandiprtfp
-    project_path: C:\eclipse-workspaces\csi\pbandiprtfp
+      
+  - name: antproject
+    project_path: C:\eclipse-workspaces\antproject
     type: Ant
     version: 1.5.4
     version_file: build.properties
