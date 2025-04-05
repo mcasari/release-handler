@@ -33,6 +33,7 @@ environment: TEST
 release_notes:
   - "Note 1"
   - "Note 2"
+remote_git_repo: origin
 maven_home: C:/APPLICATIONS/apache-maven-3.9.6
 maven_settings: C:/Users/macasari/.m2/settings.xml
 maven_compile_options:
