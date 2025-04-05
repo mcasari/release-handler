@@ -201,14 +201,14 @@ def _resolve_placeholders(data, context=None):
     else:
         return data  # Return non-string values unchanged
                     
-def _update_all_pom_properties(project_path, config):
-    for root, _, files in os.walk(project_path):
+def _update_all_pom_properties(project, config):
+    for root, _, files in os.walk(project["project_path"]):
         for file in files:
             if file == "pom.xml":
                 file_path = os.path.join(root, file)
-                _update_pom_property(file_path, config)
+                _update_pom_property(file_path, project, config)
 
-def _update_pom_property(file_path, config):
+def _update_pom_property(file_path, project, config):
     tree = ET.parse(file_path)
     root = tree.getroot()
     maven_namespace = config["maven_namespace"]
@@ -221,18 +221,17 @@ def _update_pom_property(file_path, config):
     modified = False
     properties = root.find(".//maven:properties", ns)
     if properties is not None:     
-        for configProjects in config["projects"]:
-            if configProjects["type"] == "Maven":
-                for configProperties in configProjects["properties"]:                 
-                    property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
-                    if property_element is not None:
-                        property_element.text = configProperties['property_value']
-                        logging.info(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
-                        print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
-                        modified = True                
-                    else:
-                        logging.info(f"Property {configProperties['property_name']} not found in pom.xml.")
-                        print(f"Property {configProperties['property_name']} not found in pom.xml.")
+        if project["type"] == "Maven":
+            for configProperties in project["properties"]:                 
+                property_element = properties.find(f"maven:{configProperties['property_name']}", ns)
+                if property_element is not None:
+                    property_element.text = configProperties['property_value']
+                    logging.info(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
+                    print(f"Updated {configProperties['property_name']} to {configProperties['property_value']}")
+                    modified = True                
+                else:
+                    logging.info(f"Property {configProperties['property_name']} not found in pom.xml.")
+                    print(f"Property {configProperties['property_name']} not found in pom.xml.")
     else:
         logging.info("No <properties> section found in pom.xml.")
         print("No <properties> section found in pom.xml.")
@@ -371,7 +370,7 @@ def update_versions():
                 continue
             if click.confirm(f"Update version for project {project['name']}?", default=True):
                 if project["type"] == "Maven":
-                    _update_all_pom_properties(project["project_path"], config)
+                    _update_all_pom_properties(project, config)
                     _update_maven_versions_from_yaml(project, config)
                 elif project["type"] == "Ant":
                     _update_ant_version(project["project_path"], project["version"], project["version_file"])
