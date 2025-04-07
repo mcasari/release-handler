@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 import re
 import click
 import platform
+from lxml import etree as lxmlET
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
@@ -232,7 +233,9 @@ def _update_all_pom_properties(project, config):
                 _update_pom_property(file_path, project, config)
 
 def _update_pom_property(file_path, project, config):
-    tree = ET.parse(file_path)
+    # Parse XML while preserving comments
+    parser = lxmlET.XMLParser(remove_comments=False)
+    tree = lxmlET.parse(file_path, parser)
     root = tree.getroot()
     maven_namespace = config["maven_namespace"]
     
@@ -265,7 +268,10 @@ def _update_maven_versions(project_path, dependencies, version, parent_version, 
     for root, _, files in os.walk(project_path):
         if 'pom.xml' in files:
             pom_path = os.path.join(root, 'pom.xml')
-            tree = ET.parse(pom_path)
+            # Parse XML while preserving comments
+            parser = lxmlET.XMLParser(remove_comments=False)
+            tree = lxmlET.parse(pom_path, parser)
+            
             root_element = tree.getroot()
             
             # Define the XML namespaces
