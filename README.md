@@ -33,6 +33,7 @@ environment: TEST
 release_notes:
   - "Note 1"
   - "Note 2"
+remote_git_repo: origin
 maven_home: C:/APPLICATIONS/apache-maven-3.9.6
 maven_settings: C:/Users/macasari/.m2/settings.xml
 maven_compile_options:
@@ -95,3 +96,6 @@ or in a shorter way:
 
 `release_handler.py update_versions`
 
+You can also pass a specific project name after the function name, to execute the function on a single project:
+
+`python release_handler.py update_versions <projectname>`
