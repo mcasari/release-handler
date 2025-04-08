@@ -8,10 +8,51 @@ import re
 import click
 import platform
 from lxml import etree as lxmlET
+import pandas as pd
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+                    
+def _run_git_command(repo_path, args):
+    try:
+        result = subprocess.check_output(["git", "-C", repo_path] + args, stderr=subprocess.DEVNULL)
+        return result.decode("utf-8").strip()
+    except subprocess.CalledProcessError:
+        return ""
+
+def _get_git_info(repo_path):
+    if not os.path.exists(os.path.join(repo_path, ".git")):
+        return {"Path": repo_path, "Error": "Not a git repository"}
+
+    remote_url = _run_git_command(repo_path, ["remote", "get-url", "origin"])
+    last_commit = _run_git_command(repo_path, ["rev-parse", "HEAD"])
+    commit_msg = _run_git_command(repo_path, ["log", "-1", "--pretty=%s"])
+    commit_date = _run_git_command(repo_path, ["log", "-1", "--date=iso", "--pretty=%cd"])
+    tags = _run_git_command(repo_path, ["tag", "--points-at", last_commit]).splitlines()
+    tags = ", ".join(tags) if tags else "None"
+
+    # Get all branches that point to the same commit as one of the tags (if any)
+    branch_map = {}
+    if tags != "None":
+        tag_list = tags.split(", ")
+        for tag in tag_list:
+            tag_commit = _run_git_command(repo_path, ["rev-list", "-n", "1", tag])
+            branches = _run_git_command(repo_path, ["branch", "--contains", tag_commit]).replace("*", "").splitlines()
+            branch_map[tag] = [b.strip() for b in branches]
+    else:
+        branch_map = {}
+
+    return {
+        "Path": repo_path,
+        "Remote": remote_url,
+        "Last Commit": last_commit,
+        "Commit Message": commit_msg,
+        "Commit Date": commit_date,
+        "Tags": tags,
+        "Branches with Same Commit as Tag": str(branch_map)
+    }
                     
 def _is_tag_committed(tag_name, repo_path):
     """
@@ -433,6 +474,7 @@ def create_tags(project_filter = ''):
                     logging.info(f"Tag {tag} of project {project['name']} already commited")
                     print(f"Tag {tag} of project {project['name']} already commited")
                     continue
+                checkout_and_pull(project['name'])
                 _execute_command(["git", "tag", tag], project["project_path"])
                 logging.info(f"Tagged {project['name']} with {tag}")
                 print(f"Tagged {project['name']} with {tag}")
@@ -461,6 +503,7 @@ def push_tags(project_filter = ''):
                         logging.info(f"The {tag} for project {project['name']} is already pushed")
                         print(f"The {tag} for project {project['name']} is already pushed")
                         continue
+                    checkout_and_pull(project['name'])
                     _execute_command(["git", "push", "origin", "tag", tag], project["project_path"])
                 except Exception as e:
                     pass
@@ -490,6 +533,7 @@ def delete_tags(project_filter = ''):
                     logging.info(f"There is no tag {tag} for project {project['name']}")
                     print(f"There is no tag {tag} for project {project['name']}")
                     continue
+                checkout_and_pull(project['name'])
                 _execute_command(["git", "tag", "-d", tag], project["project_path"])
                 logging.info(f"Deleted tag {tag}")
                 print(f"Deleted tag {tag}")
@@ -630,6 +674,34 @@ def compile_check(project_filter = ''):
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
+          
+def extract_git_info_to_excel(project_filter = '', output_file="git_info.xlsx"):
+    try:
+        with open("release_handler_config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+        
+        repo_paths = []
+        for project in config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue        
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue   
+            repo_paths.append(project["project_path"])
+            print(f"repo_paths: {repo_paths}")  
+            
+        records = [_get_git_info(path) for path in repo_paths]
+        df = pd.DataFrame(records)
+        df.to_excel(output_file, index=False)
+        logging.info(f"Excel file created: {output_file}")
+        print(f"Excel file created: {output_file}")       
+        
+    except Exception as e:
+        logging.error(f"An error occurred: {e}")  
+        print(f"An error occurred: {e}")
+                
+
         
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -682,7 +754,12 @@ if __name__ == "__main__":
             if len(sys.argv) > 2 and sys.argv[2] != "":
                 compile_check(sys.argv[2])
             else:
-                compile_check()            
+                compile_check() 
+        elif sys.argv[1] == "extract_git_info_to_excel":
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                extract_git_info_to_excel(sys.argv[2])
+            else:
+                extract_git_info_to_excel()                 
         else:
              print("Wrong argument!")           
     else:
