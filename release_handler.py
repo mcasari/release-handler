@@ -14,6 +14,43 @@ from datetime import datetime
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
+        
+def _refresh_git_tags(repo_path):
+    """
+    Deletes all local tags and fetches remote tags in a Git repository.
+
+    :param repo_path: Path to the local Git repository.
+    """
+    if not os.path.isdir(repo_path):
+        raise ValueError(f"Path '{repo_path}' is not a directory")
+
+    # Change to the git repo directory
+    original_dir = os.getcwd()
+    os.chdir(repo_path)
+
+    try:
+        # Verify it's a git repository
+        subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, stdout=subprocess.DEVNULL)
+
+        # Get all local tags
+        result = subprocess.run(["git", "tag"], check=True, stdout=subprocess.PIPE, text=True)
+        tags = result.stdout.strip().split("\n")
+
+        # Delete local tags
+        if tags and tags[0] != '':
+            subprocess.run(["git", "tag", "-d"] + tags, check=True)
+            print(f"Deleted {len(tags)} local tag(s).")
+        else:
+            print("No local tags to delete.")
+
+        # Fetch remote tags
+        subprocess.run(["git", "fetch", "--tags"], check=True)
+        print("Fetched remote tags.")
+
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred: {e}")
+    finally:
+        os.chdir(original_dir)
                     
 def _run_git_command(repo_path, args):
     try:
@@ -468,6 +505,7 @@ def create_tags(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _refresh_git_tags(project["project_path"])
             tag = project["tag"]
             if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
                 if _is_tag_committed(tag, project["project_path"]):
@@ -759,7 +797,9 @@ if __name__ == "__main__":
             if len(sys.argv) > 2 and sys.argv[2] != "":
                 extract_git_info_to_excel(sys.argv[2])
             else:
-                extract_git_info_to_excel()                 
+                extract_git_info_to_excel()   
+        elif sys.argv[1] == "_refresh_git_tags":
+            _refresh_git_tags('C:/eclipse-workspaces/csi/pbservwelfare')                             
         else:
              print("Wrong argument!")           
     else:
