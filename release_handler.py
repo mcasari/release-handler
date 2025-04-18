@@ -479,6 +479,7 @@ def update_versions(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             if click.confirm(f"Update version for project {project['name']}?", default=True):
                 if project["type"] == "Maven":
                     _update_all_pom_properties(project, config)
@@ -505,14 +506,14 @@ def create_tags(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             _refresh_git_tags(project["project_path"])
             tag = project["tag"]
             if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
                 if _is_tag_committed(tag, project["project_path"]):
                     logging.info(f"Tag {tag} of project {project['name']} already commited")
                     print(f"Tag {tag} of project {project['name']} already commited")
-                    continue
-                checkout_and_pull(project['name'])
+                    continue               
                 _execute_command(["git", "tag", tag], project["project_path"])
                 logging.info(f"Tagged {project['name']} with {tag}")
                 print(f"Tagged {project['name']} with {tag}")
@@ -537,11 +538,14 @@ def push_tags(project_filter = ''):
             tag = project["tag"]
             if click.confirm(f"Push tag {tag} for project {project['name']}?", default=True):
                 try:
+                    _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
+                    _refresh_git_tags(project["project_path"])
+                    if not _is_tag_committed(tag, project["project_path"]):
+                        _execute_command(["git", "tag", tag], project["project_path"])                            
                     if _is_tag_pushed(project["project_path"], tag):
                         logging.info(f"The {tag} for project {project['name']} is already pushed")
                         print(f"The {tag} for project {project['name']} is already pushed")
                         continue
-                    checkout_and_pull(project['name'])
                     _execute_command(["git", "push", "origin", "tag", tag], project["project_path"])
                 except Exception as e:
                     pass
@@ -567,11 +571,12 @@ def delete_tags(project_filter = ''):
                 continue
             tag = project["tag"]
             if click.confirm(f"Delete tag {tag} for project {project['name']}?", default=True):
+                _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
+                _refresh_git_tags(project["project_path"])
                 if not _is_tag_committed(tag, project["project_path"]):
                     logging.info(f"There is no tag {tag} for project {project['name']}")
                     print(f"There is no tag {tag} for project {project['name']}")
                     continue
-                checkout_and_pull(project['name'])
                 _execute_command(["git", "tag", "-d", tag], project["project_path"])
                 logging.info(f"Deleted tag {tag}")
                 print(f"Deleted tag {tag}")
@@ -600,6 +605,7 @@ def delete_tags_remotely(project_filter = ''):
                 continue
             tag = project["tag"]
             if click.confirm(f"Delete tag {tag} remotely for project {project['name']}?", default=True):
+                _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
                 if not _is_tag_pushed(project["project_path"], tag):
                     logging.info(f"The {tag} for project {project['name']} does not exist remotely")
                     print(f"The {tag} for project {project['name']} does not exist remotely")
@@ -607,6 +613,7 @@ def delete_tags_remotely(project_filter = ''):
                 _execute_command(["git", "push", "--delete", remote, tag], project["project_path"])
                 logging.info(f"Deleted tag {tag} remotely")
                 print(f"Deleted tag {tag} remotely")
+                _refresh_git_tags(project["project_path"])
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
@@ -624,6 +631,7 @@ def commit(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             changes =_list_git_changes(project["project_path"])
             logging.info(f"Changes to commit {changes}")
             print(f"Changes to commit {changes}")
@@ -648,6 +656,7 @@ def remove_last_commit(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             if click.confirm(f"Reset last commit for {project['name']}?", default=False):
                 if not _is_last_commit_pushed(project["project_path"]):
                     _execute_command(["git", "reset", f"--{project['reset_type']}", "HEAD~1"] , project["project_path"])
@@ -673,6 +682,7 @@ def reset(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             if click.confirm(f"Reset {project['name']}?", default=True):
                 _execute_command(["git", "reset", f"--{project['reset_type']}"] , project["project_path"])
                 logging.info(f"Resetted project {project['name']}")
@@ -694,6 +704,7 @@ def compile_check(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
+            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
             if click.confirm(f"Compile {project['name']}?", default=True):
                 logging.info(f"Compiling project {project['name']} ...")
                 print(f"Compiling {project['name']} ...")
