@@ -18,7 +18,9 @@ from git import Repo
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
-        
+def _has_special_characters(s):
+    return bool(re.search(r'[^a-zA-Z0-9]', s))
+    
 def _refresh_git_tags(repo_path):
     """
     Deletes all local tags and fetches remote tags in a Git repository.
@@ -41,9 +43,15 @@ def _refresh_git_tags(repo_path):
         tags = result.stdout.strip().split("\n")
 
         # Delete local tags
+        
         if tags and tags[0] != '':
-            subprocess.run(["git", "tag", "-d"] + tags, check=True)
-            print(f"Deleted {len(tags)} local tag(s).")
+            for tag in tags:
+                if _has_special_characters(tag):
+                    print(f"remove tag {tag}")
+                    tags.remove(tag)                    
+            # Run subprocess with UTF-8 encoding
+            subprocess.run(["git", "tag", "-d"] + tags, check=True, text=True, encoding="utf-8")
+            print(f"Deleted local tags {tags}")
         else:
             print("No local tags to delete.")
 
