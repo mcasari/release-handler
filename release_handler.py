@@ -10,6 +10,10 @@ import platform
 from lxml import etree as lxmlET
 import pandas as pd
 from datetime import datetime
+from openpyxl import load_workbook
+from openpyxl.styles import PatternFill
+from openpyxl.utils import get_column_letter
+from git import Repo
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
@@ -90,7 +94,8 @@ def _get_git_info(repo_path):
         "Tags": tags,
         "Branches with Same Commit as Tag": str(branch_map)
     }
-                    
+         
+        
 def _is_tag_committed(tag_name, repo_path):
     """
     Check if a given Git tag exists in the repository.
@@ -724,30 +729,54 @@ def compile_check(project_filter = ''):
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
           
-def extract_git_info_to_excel(project_filter = '', output_file="git_info.xlsx"):
+        
+def extract_git_info_to_excel(project_filter='', output_file="git_info.xlsx"):
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
-        
+
         repo_paths = []
         for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue        
+            if project_filter and project_filter != project['name']:
+                continue
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
-                continue   
+                continue
+
             repo_paths.append(project["project_path"])
-            print(f"repo_paths: {repo_paths}")  
-            
-        records = [_get_git_info(path) for path in repo_paths]
+
+        records = [info for path in repo_paths if (info := _get_git_info(path)) is not None]
+
+        if not records:
+            print("No data to write to Excel.")
+            logging.warning("No data to write to Excel.")
+            return
+
         df = pd.DataFrame(records)
         df.to_excel(output_file, index=False)
-        logging.info(f"Excel file created: {output_file}")
-        print(f"Excel file created: {output_file}")       
-        
+
+        # Open the file with openpyxl for formatting
+        wb = load_workbook(output_file)
+        ws = wb.active
+
+        # Set header fill color (orange)
+        header_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
+        for cell in ws[1]:
+            cell.fill = header_fill
+
+        # Auto-adjust column widths
+        for col in ws.columns:
+            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max_length + 2  # add some padding
+
+        wb.save(output_file)
+        logging.info(f"Excel file created with formatting: {output_file}")
+        print(f"Excel file created with formatting: {output_file}")
+
     except Exception as e:
-        logging.error(f"An error occurred: {e}")  
+        logging.error(f"An error occurred: {e}")
         print(f"An error occurred: {e}")
                 
 
