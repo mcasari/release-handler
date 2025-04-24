@@ -1,3 +1,6 @@
+![GitHub all releases](https://img.shields.io/github/downloads/mcasari/release-handler/total)
+![GitHub language count]
+
 # release-handler
 
 Python script named release_handler.py with functions aimed at handling versioning, tagging and check compilation of a configured set of Maven (multi-module in the general case), Ant and Angular projects. It also allows to perform several Git operations on all the projects like commit, checkout, pull, reset and remove last commit. The projects are configured in a release_handler.yaml file.
