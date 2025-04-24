@@ -1,5 +1,9 @@
 ![GitHub all releases](https://img.shields.io/github/downloads/mcasari/release-handler/total)
-![GitHub language count]
+![GitHub language count](https://img.shields.io/github/languages/count/mcasari/release-handler)
+![GitHub top language](https://img.shields.io/github/languages/top/mcasari/release-handler?color=yellow)
+![Bitbucket open issues](https://img.shields.io/bitbucket/issues/mcasari/release-handler)
+![GitHub forks](https://img.shields.io/github/forks/mcasari/release-handler?style=social)
+![GitHub Repo stars](https://img.shields.io/github/stars/mcasari/release-handler?style=social)
 
 # release-handler
 
