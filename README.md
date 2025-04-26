@@ -23,7 +23,6 @@ in the command line:
 
  'pip install pandas openpyxl'
 
-
 ## How the script works
 
 The release_handler.py script defines the following functions:
@@ -111,7 +110,3 @@ or in a shorter way:
 You can also pass a specific project name after the function name, to execute the function on a single project:
 
 `python release_handler.py update_versions <projectname>`
-
-
-
-
