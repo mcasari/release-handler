@@ -98,7 +98,6 @@ projects:
     git_branch: master
     skip: false
 ```
-
 You can execute each funtion with a command like the following, provided that the release_handler.yaml file is in the same directory of the script:
 
 `python release_handler.py update_versions`
