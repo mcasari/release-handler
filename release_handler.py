@@ -845,9 +845,7 @@ if __name__ == "__main__":
             if len(sys.argv) > 2 and sys.argv[2] != "":
                 extract_git_info_to_excel(sys.argv[2])
             else:
-                extract_git_info_to_excel()   
-        elif sys.argv[1] == "_refresh_git_tags":
-            _refresh_git_tags('C:/eclipse-workspaces/csi/pbservwelfare')                             
+                extract_git_info_to_excel()                         
         else:
              print("Wrong argument!")           
     else:
