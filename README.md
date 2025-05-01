@@ -109,3 +109,5 @@ or in a shorter way:
 You can also pass a specific project name after the function name, to execute the function on a single project:
 
 `python release_handler.py update_versions <projectname>`
+
+
