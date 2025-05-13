@@ -5,6 +5,8 @@
 ![GitHub forks](https://img.shields.io/github/forks/mcasari/release-handler?style=social)
 ![GitHub Repo stars](https://img.shields.io/github/stars/mcasari/release-handler?style=social)
 
+
+
 # release-handler
 
 Python script named release_handler.py with functions aimed at handling versioning, tagging and check compilation of a configured set of Maven (multi-module in the general case), Ant and Angular projects. It also allows to perform several Git operations on all the projects like commit, checkout, pull, reset and remove last commit. The projects are configured in a release_handler.yaml file.
@@ -35,7 +37,7 @@ The release_handler.py script defines the following functions:
 - reset: performs a Git reset on each project with type hard, soft or mixed, according to the value set in the configuration file
 - checkout_and_pull: performs a checkout on the branch defined in the configuration file and a pull from the remote Git repository
 - compile_check: performs a compilation of each project to check possible errors using the environment settings defined in the configuration file
-- extract_git_info_to_excel: generates an excel report with the current remote tag situation
+- extract_git_info_to_excel: generates an excel report with the current remote tag situation, with git urls, commit ids and related tags
 
 Here is an example of configuration file content:
 
@@ -109,3 +111,5 @@ or in a shorter way:
 You can also pass a specific project name after the function name, to execute the function on a single project:
 
 `python release_handler.py update_versions <projectname>`
+
+
