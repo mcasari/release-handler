@@ -7,6 +7,9 @@ import xml.etree.ElementTree as ET
 import re
 import click
 import platform
+import shutil
+import stat
+import json
 from lxml import etree as lxmlET
 import pandas as pd
 from datetime import datetime
@@ -21,88 +24,69 @@ logging.basicConfig(filename='release-handler.log', level=logging.INFO,
 def _has_special_characters(s):
     return bool(re.search(r'[^a-zA-Z0-9]', s))
     
-def _refresh_git_tags(repo_path):
+def _on_rm_error(func, path, exc_info):
+    """Error handler for shutil.rmtree to handle read-only files."""
+    os.chmod(path, stat.S_IWRITE)  # Try to make it writable
+    func(path)
+    
+def _clone_git_repo_delete_existent(repo_url, repo_local_dir):
     """
-    Deletes all local tags and fetches remote tags in a Git repository.
+    Clones a Git repository from the given HTTPS URL into the specified folder.
 
-    :param repo_path: Path to the local Git repository.
+    Args:
+        repo_url (str): The HTTPS URL of the Git repository.
+        base_dir (str): The path to the folder where the repo should be cloned.
+
+    Raises:
+        ValueError: If the repo_url is not a valid HTTPS Git URL.
+        subprocess.CalledProcessError: If the git clone command fails.
     """
-    if not os.path.isdir(repo_path):
-        raise ValueError(f"Path '{repo_path}' is not a directory")
-
-    # Change to the git repo directory
-    original_dir = os.getcwd()
-    os.chdir(repo_path)
-
-    try:
-        # Verify it's a git repository
-        subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], check=True, stdout=subprocess.DEVNULL)
-
-        # Get all local tags
-        result = subprocess.run(["git", "tag"], check=True, stdout=subprocess.PIPE, text=True)
-        tags = result.stdout.strip().split("\n")
-
-        # Delete local tags
+    if not repo_url.startswith("https://"):
+        raise ValueError("Only HTTPS URLs are supported.")
+    # Delete the existing folder if it exists
+    
+    if os.path.exists(repo_local_dir):
+        print(f"Removing existing directory: {repo_local_dir}")
+        shutil.rmtree(repo_local_dir, onerror=_on_rm_error)
         
-        if tags and tags[0] != '':
-            for tag in tags:
-                if _has_special_characters(tag):
-                    print(f"remove tag {tag}")
-                    tags.remove(tag)                    
-            # Run subprocess with UTF-8 encoding
-            subprocess.run(["git", "tag", "-d"] + tags, check=True, text=True, encoding="utf-8")
-            print(f"Deleted local tags {tags}")
-        else:
-            print("No local tags to delete.")
+    # Ensure the target folder exists
+    os.makedirs(repo_local_dir, exist_ok=True)
 
-        # Fetch remote tags
-        subprocess.run(["git", "fetch", "--tags"], check=True)
-        print("Fetched remote tags.")
-
-    except subprocess.CalledProcessError as e:
-        print(f"An error occurred: {e}")
-    finally:
-        os.chdir(original_dir)
-                    
-def _run_git_command(repo_path, args):
     try:
-        result = subprocess.check_output(["git", "-C", repo_path] + args, stderr=subprocess.DEVNULL)
-        return result.decode("utf-8").strip()
+        subprocess.run(["git", "clone", repo_url, repo_local_dir], check=True)
+        print(f"Repository cloned into '{repo_local_dir}' successfully.")
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to clone repository: {e}")
+        raise
+                
+def _get_latest_git_tag_with_prefix(repo_path, prefix):
+    try:
+        # Change to the git repo directory
+        original_dir = os.getcwd()
+        os.chdir(repo_path)
+    
+        # Get all tags starting with the prefix, sorted in descending version order
+        tags = subprocess.check_output(
+            ["git", "tag", "--list", f"{prefix}*", "--sort=-v:refname"],
+            text=True
+        ).splitlines()
+        return tags[0] if tags else None
     except subprocess.CalledProcessError:
-        return ""
+        return None
 
-def _get_git_info(repo_path):
-    if not os.path.exists(os.path.join(repo_path, ".git")):
-        return {"Path": repo_path, "Error": "Not a git repository"}
+def _next_progr_tagsuffix_from_git(repo_path, base_string, format_str="03d", format_str_prefix = "-"):
+    latest_tag = _get_latest_git_tag_with_prefix(repo_path, base_string)
 
-    remote_url = _run_git_command(repo_path, ["remote", "get-url", "origin"])
-    last_commit = _run_git_command(repo_path, ["rev-parse", "HEAD"])
-    commit_msg = _run_git_command(repo_path, ["log", "-1", "--pretty=%s"])
-    commit_date = _run_git_command(repo_path, ["log", "-1", "--date=iso", "--pretty=%cd"])
-    tags = _run_git_command(repo_path, ["tag", "--points-at", last_commit]).splitlines()
-    tags = ", ".join(tags) if tags else "None"
-
-    # Get all branches that point to the same commit as one of the tags (if any)
-    branch_map = {}
-    if tags != "None":
-        tag_list = tags.split(", ")
-        for tag in tag_list:
-            tag_commit = _run_git_command(repo_path, ["rev-list", "-n", "1", tag])
-            branches = _run_git_command(repo_path, ["branch", "--contains", tag_commit]).replace("*", "").splitlines()
-            branch_map[tag] = [b.strip() for b in branches]
+    if latest_tag:
+        match = re.search(rf"{re.escape(base_string + format_str_prefix)}(\d+)$", latest_tag)
+        last_number = int(match.group(1)) if match else 0
+        print(f"Last number {last_number}")
     else:
-        branch_map = {}
+        last_number = 0
 
-    return {
-        "Path": repo_path,
-        "Remote": remote_url,
-        "Last Commit": last_commit,
-        "Commit Message": commit_msg,
-        "Commit Date": commit_date,
-        "Tags": tags,
-        "Branches with Same Commit as Tag": str(branch_map)
-    }
-         
+    next_number = last_number + 1
+    return format_str_prefix + format(next_number, format_str)
+                            
         
 def _is_tag_committed(tag_name, repo_path):
     """
@@ -186,118 +170,6 @@ def _is_tag_pushed(project_path, tag_name) -> bool:
         print(f"Error checking remote tags: {e.stderr}")
         return False
         
-def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
-    """
-    Compiles a Maven project while skipping tests.
-    
-    :param project_path: Path to the Maven project.
-    :param maven_home: Path to the Maven home directory.
-    :param settings_file: Path to the Maven settings file.
-    :return: True if compilation succeeds, False otherwise.
-    """
-    is_windows = platform.system() == "Windows"
-    mvn_executable = os.path.join(maven_home, "bin", "mvn.cmd" if is_windows else "mvn")
-    command = [mvn_executable, "clean", "compile", "--settings", settings_file]
-    maven_compile_options = config.get("maven_compile_options", [])
-    install_index = command.index("compile")
-    command = command[:install_index + 1] + maven_compile_options + command[install_index + 1:]
-    
-    try:
-        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            return True
-        else:
-            logging.info("Maven build failed:", result.stderr)
-            print("Maven build failed:", result.stderr)
-            return False
-    except Exception as e:
-        logging.error(f"Error running Maven: {e}")
-        print(f"Error running Maven: {e}")
-        return False
-        
-def _compile_angular_project(project_path, config) -> bool:
-    """
-    Checks if an Angular project compiles correctly.
-    :param project_path: Path to the Angular project.
-    :return: True if the project compiles successfully, False otherwise.
-    """
-    if not os.path.isdir(project_path):
-        logging.error("Invalid project path.")
-        print("Invalid project path.")
-        return False
-    
-    try:
-        # Run the Angular build command
-        npm_command = os.path.join(config["nodejs_home"], "ng")
-        is_windows = platform.system() == "Windows"
-        if is_windows:
-            npm_command = os.path.join(config["nodejs_home"], "ng.cmd")
-        nodejs_compile_options = config.get("nodejs_compile_options", [])
-        npm_command_arr = [npm_command, "build"] + nodejs_compile_options;
-        result = subprocess.run(
-            npm_command_arr, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        if result.returncode == 0:
-            return True
-        else:
-            logging.info("Build failed:", result.stderr)
-            print("Build failed:", result.stderr)
-            return False
-    except FileNotFoundError as e:
-        logging.error(f"Error: {e}")
-        print(f"Error: {e}")
-        return False
-
-# Example usage:
-# print(check_angular_compile("/path/to/angular/project"))
-
-def _compile_ant_project(project_path, config) -> bool:
-    """
-    Compiles an Ant project.
-    
-    :param project_path: Path to the Ant project.
-    :param ant_home: Path to the Ant home directory.
-    :param ant_target: The Ant target to execute.
-    :return: True if compilation is successful, False otherwise.
-    """
-    ant_executable = os.path.join(config["ant_home"], 'bin', 'ant')
-    is_windows = platform.system() == "Windows"
-    if is_windows:
-        ant_executable = os.path.join(config["ant_home"], 'bin', 'ant.bat')
-    command = [ant_executable, config["ant_target"]] + config["ant_compile_options"]
-    
-    try:
-        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        logging.info(result.stderr)
-        print(result.stderr)
-        if "failed" in result.stderr:
-            raise ValueError("Unexpected error during build: " + result.stderr)       
-        return result.returncode == 0
-    except Exception as e:
-        logging.error(f"Error executing Ant: {e}")
-        print(f"Error executing Ant: {e}")
-        return False
-
-# Example usage:
-# success = compile_ant_project("/path/to/project", "/path/to/ant", "build")
-# print("Compilation Successful" if success else "Compilation Failed")
-
-def _is_last_commit_pushed(project_path):
-    try:
-        # Get the latest commit hash
-        commit_hash = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=project_path
-        ).strip().decode("utf-8")
-
-        # Check if the commit is in the remote
-        remote_branches = subprocess.check_output(
-            ["git", "branch", "-r", "--contains", commit_hash], cwd=project_path
-        ).strip().decode("utf-8")
-
-        # If the commit exists in remote branches, it's pushed
-        return bool(remote_branches)
-    except subprocess.CalledProcessError:
-        return False              
                                         
 def _resolve_placeholders(data, context=None):
     """ Recursively resolves placeholders in a dictionary using string formatting """
@@ -315,9 +187,21 @@ def _resolve_placeholders(data, context=None):
             return data  # Return as-is if placeholders are unresolved
     else:
         return data  # Return non-string values unchanged
-                    
+                        
+def _execute_command(command, cwd):
+    """Executes a shell command in a given directory."""
+    try:
+        subprocess.run(command, cwd=cwd, check=True, shell=True)
+        logging.info(f"Executed: {' '.join(command)} in {cwd}")
+        print(f"Executed: {' '.join(command)} in {cwd}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Command failed: {e}")
+        print(f"Command failed: {e}")
+        raise
+        
 def _update_all_pom_properties(project, config):
-    for root, _, files in os.walk(project["project_path"]):
+    project_path = base_dir + '/' + project["name"]
+    for root, _, files in os.walk(project_path):
         for file in files:
             if file == "pom.xml":
                 file_path = os.path.join(root, file)
@@ -415,26 +299,41 @@ def _update_maven_versions_from_yaml(project, config):
         raise ValueError("YAML file must contain 'maven_namespace', 'project_path', 'parent_version', 'dependencies' and 'version' fields.")
     
     _update_maven_versions(project_path, dependencies, version, parent_version, maven_namespace)
-
-                                       
-                    
-def _find_file(base_path, filename):
-    for root, _, files in os.walk(base_path):
-        if filename in files:
-            return os.path.join(root, filename)  
-    return None
     
-def _execute_command(command, cwd):
-    """Executes a shell command in a given directory."""
-    try:
-        subprocess.run(command, cwd=cwd, check=True, shell=True)
-        logging.info(f"Executed: {' '.join(command)} in {cwd}")
-        print(f"Executed: {' '.join(command)} in {cwd}")
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Command failed: {e}")
-        print(f"Command failed: {e}")
-        raise
+def _update_angular_version(path, version, version_file, dependencies):
+    """Updates the Angular project version."""
+    version_file_path = _find_file(path, version_file)    
+    with open(version_file_path, 'r', encoding='utf-8') as file:
+        try:
+            package_data = json.load(file)
+        except json.JSONDecodeError as e:
+            logging.error(f"Error decoding JSON in {version_file_path}: {e}")
+            print(f"Error decoding JSON in {version_file_path}: {e}")
+            return
 
+    # Update the main version field
+    package_data["version"] = version
+    print(f"Updated Angular version in {version_file_path} to {version}")
+    logging.info(f"Updated Angular version in {version_file_path} to {version}")
+
+    # Update dependencies if provided
+    if dependencies:
+        for dependency in dependencies:
+            name = dependency["dependency_name"]
+            new_version = dependency["dependency_version"]
+            for section in ("dependencies", "devDependencies", "peerDependencies", "optionalDependencies"):
+                if name in package_data.get(section, {}):
+                    old_version = package_data[section][name]
+                    package_data[section][name] = new_version
+                    logging.info(f"Updated {name} in {section} from {old_version} to {new_version}")
+                    print(f"Updated {name} in {section} from {old_version} to {new_version}")
+
+    with open(version_file_path, 'w', encoding='utf-8') as file:
+        json.dump(package_data, file, indent=2)
+        file.write("\n")
+        print(f"Updated Angular version in {version_file_path} to {version}")
+        logging.info(f"Updated Angular version in {version_file_path} to {version}")
+        
 def _update_ant_version(path, version, version_file):
     """Updates the Ant project version."""
     version_file_path = _find_file(path, version_file)
@@ -446,45 +345,134 @@ def _update_ant_version(path, version, version_file):
     print(f"Updated Ant version in {version_file_path} to {version}")
     logging.info(f"Updated Ant version in {version_file_path} to {version}")
 
-def _update_angular_version(path, version, version_file):
-    """Updates the Angular project version."""
-    version_file_path = _find_file(path, version_file)
-    with open(version_file_path, 'r') as file:
-        content = file.read()
-    content = re.sub(r'"version"\s*:\s*".*?"\s*,', f'"version": "{version}",', content)
-    with open(version_file_path, 'w') as file:
-        file.write(content)
-    print(f"Updated Angular version in {version_file_path} to {version}")
-    logging.info(f"Updated Angular version in {version_file_path} to {version}")
+def _compile_maven_project(project_path, maven_home, settings_file, config) -> bool:
+    """
+    Compiles a Maven project while skipping tests.
     
-def checkout_and_pull(project_filter = ''):
-    """Performs git checkout on master and pulls latest changes."""
-    with open("release_handler_config.yaml", "r") as file:
-        config = yaml.safe_load(file)   
+    :param project_path: Path to the Maven project.
+    :param maven_home: Path to the Maven home directory.
+    :param settings_file: Path to the Maven settings file.
+    :return: True if compilation succeeds, False otherwise.
+    """
+    is_windows = platform.system() == "Windows"
+    mvn_executable = os.path.join(maven_home, "bin", "mvn.cmd" if is_windows else "mvn")
+    command = [mvn_executable, "clean", "compile", "--settings", settings_file]
+    maven_compile_options = config.get("maven_compile_options", [])
+    install_index = command.index("compile")
+    command = command[:install_index + 1] + maven_compile_options + command[install_index + 1:]
+    
     try:
-        for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            if click.confirm(f"Check out and pull project {project['name']}?", default=True):
-                branch = project["git_branch"]
-                _execute_command(["git", "checkout", branch], project['project_path'])
-                _execute_command(["git", "pull"], project['project_path'])
-                logging.info(f"Project {project['name']} checked out and pulled")  
-                print(f"Project {project['name']} checked out and pulled")
+        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            return True
+        else:
+            logging.info("Maven build failed:", result.stderr)
+            print("Maven build failed:", result.stderr)
+            return False
     except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}")
+        logging.error(f"Error running Maven: {e}")
+        print(f"Error running Maven: {e}")
+        return False
+        
+def _compile_angular_project(project_path, config) -> bool:
+    """
+    Checks if an Angular project compiles correctly.
+    :param project_path: Path to the Angular project.
+    :return: True if the project compiles successfully, False otherwise.
+    """
+    if not os.path.isdir(project_path):
+        logging.error("Invalid project path.")
+        print("Invalid project path.")
+        return False
+    
+    try:
+        # Run the Angular build command
+        npm_command = os.path.join(config["nodejs_home"], "npm")
+        is_windows = platform.system() == "Windows"
+        if is_windows:
+            npm_command = os.path.join(config["nodejs_home"], "npm.cmd")
+        npm_command_arr = [npm_command, "install"];
+        result = subprocess.run(
+            npm_command_arr, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        if result.returncode == 0:
+            return True
+        else:
+            logging.info("Build failed:", result.stderr)
+            print("Build failed:", result.stderr)
+            return False
+    except FileNotFoundError as e:
+        logging.error(f"Error: {e}")
+        print(f"Error: {e}")
+        return False
+
+# Example usage:
+# print(check_angular_compile("/path/to/angular/project"))
+
+def _compile_ant_project(project_path, config) -> bool:
+    """
+    Compiles an Ant project.
+    
+    :param project_path: Path to the Ant project.
+    :param ant_home: Path to the Ant home directory.
+    :param ant_target: The Ant target to execute.
+    :return: True if compilation is successful, False otherwise.
+    """
+    ant_executable = os.path.join(config["ant_home"], 'bin', 'ant')
+    is_windows = platform.system() == "Windows"
+    if is_windows:
+        ant_executable = os.path.join(config["ant_home"], 'bin', 'ant.bat')
+    command = [ant_executable, config["ant_target"]] + config["ant_compile_options"]
+    
+    try:
+        result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        logging.info(result.stderr)
+        print(result.stderr)
+        if "failed" in result.stderr:
+            raise ValueError("Unexpected error during build: " + result.stderr)       
+        return result.returncode == 0
+    except Exception as e:
+        logging.error(f"Error executing Ant: {e}")
+        print(f"Error executing Ant: {e}")
+        return False
+        
+def _find_file(base_path, filename):
+    for root, _, files in os.walk(base_path):
+        if filename in files:
+            return os.path.join(root, filename)  
+    return None
+        
+def _has_unpushed_commits(repo_path):
+    if not os.path.isdir(os.path.join(repo_path, '.git')):
+        raise ValueError("The specified path is not a Git repository")
+
+    try:
+        # Fetch latest info from remote
+        subprocess.run(['git', 'fetch'], cwd=repo_path, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        # Get the name of the current branch
+        result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                cwd=repo_path, capture_output=True, text=True, check=True)
+        branch = result.stdout.strip()
+
+        # Check for unpushed commits
+        result = subprocess.run(['git', 'rev-list', '--left-only', '--count', f'{branch}...origin/{branch}'],
+                                cwd=repo_path, capture_output=True, text=True, check=True)
+        unpushed_count = int(result.stdout.strip())
+
+        return unpushed_count > 0
+
+    except subprocess.CalledProcessError as e:
+        print(f"Git command failed: {e}")
+        return False
 
 def update_versions(project_filter = ''):
     """Reads the YAML file and processes each project."""
     with open("release_handler_config.yaml", "r") as file:
         config = yaml.safe_load(file)
-    
+        
     try:
+        base_dir = config["base_dir"]
         for project in config["projects"]:
             if project_filter != '' and project_filter != project['name']:
                 continue  
@@ -492,360 +480,171 @@ def update_versions(project_filter = ''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
+            repo_url = project["project_remote_git_url"]
+            project_path = base_dir + '/' + project["name"]
+            _clone_git_repo_delete_existent(repo_url, project_path)               
             if click.confirm(f"Update version for project {project['name']}?", default=True):
+                changed = False
                 if project["type"] == "Maven":
                     _update_all_pom_properties(project, config)
                     _update_maven_versions_from_yaml(project, config)
+                    changed = True
                 elif project["type"] == "Ant":
-                    _update_ant_version(project["project_path"], project["version"], project["version_file"])
+                    _update_ant_version(project_path, project["version"], project["version_file"])
+                    changed = True
                 elif project["type"] == "Angular":
-                    _update_angular_version(project["project_path"], project["version"], project["version_file"])
+                    dependencies = project.get("dependencies", [])
+                    if not dependencies:
+                        dependencies = []
+                    _update_angular_version(project_path, project["version"], project["version_file"], dependencies)
+                    changed = True
+                
+                if changed:
+                    changes =_list_git_changes(project_path)
+                    is_void = all(len(v) == 0 for v in changes.values())
+                    if is_void:
+                        logging.info(f"No changes to commit {changes}")
+                        print(f"No changes to commit {changes}")
+                        return
+                    logging.info(f"Changes to commit {changes}")
+                    print(f"Changes to commit {changes}")
+                    
+                    if click.confirm(f"Commit changes for project {project['name']}?", default=True):
+                        _execute_command(["git", "commit", "-am", f"Update project with version {project['version']}"] , project_path)
+                        logging.info(f"Updated project with version {project['version']}")
+                        print(f"Updated project with version {project['version']}")
+                else:
+                    logging.info(f"No changes to commit {changes}")
+                    print(f"No changes to commit {changes}")    
+                    
     except Exception as e:
         logging.error(f"An error occurred: {e}")  
         print(f"An error occurred: {e}") 
-    
-def create_tags(project_filter = ''):
+        
+        
+def update_tags(project_filter = ''):
     """Tags each project with the appropriate tag name."""
     try:
         with open("release_handler_config.yaml", "r") as file:
             config = yaml.safe_load(file)
             resolved_config = _resolve_placeholders(config)
-        
+            
+        base_dir = resolved_config["base_dir"]
+        tag_progr_suffix = resolved_config["tag_progr_suffix"]
+        tag_progr_suffix_format = resolved_config["tag_progr_suffix_format"]
+        tag_progr_suffix_format_prefix = resolved_config["tag_progr_suffix_format_prefix"]       
         for project in resolved_config["projects"]:
             if project_filter != '' and project_filter != project['name']:
                 continue  
             if 'skip' in project and project['skip']:
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
-                continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-            _refresh_git_tags(project["project_path"])
-            tag = project["tag"]
+                continue    
+            tag = project["tag"]            
             if click.confirm(f"Create tag {tag} for project {project['name']}?", default=True):
-                if _is_tag_committed(tag, project["project_path"]):
+                project_path = base_dir + '/' + project["name"]
+                if _is_tag_committed(tag, project_path):
                     logging.info(f"Tag {tag} of project {project['name']} already commited")
                     print(f"Tag {tag} of project {project['name']} already commited")
-                    continue               
-                _execute_command(["git", "tag", tag], project["project_path"])
+                    continue
+                repo_url = project["project_remote_git_url"]               
+                _clone_git_repo_delete_existent(repo_url, project_path)          
+                
+                if(tag_progr_suffix):                      
+                    tag = tag + _next_progr_tagsuffix_from_git(project_path, tag, tag_progr_suffix_format, tag_progr_suffix_format_prefix) 
+                print(f"Tagging {project['name']} with {tag}")                      
+                _execute_command(["git", "tag", tag], project_path)
                 logging.info(f"Tagged {project['name']} with {tag}")
                 print(f"Tagged {project['name']} with {tag}")
-    except Exception as ex:
-        logging.error(f"An error occurred: {ex}")  
-        print(f"An error occurred: {ex}")
-        
-        
-def push_tags(project_filter = ''):
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-            resolved_config = _resolve_placeholders(config)
-        
-        for project in resolved_config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            tag = project["tag"]
-            if click.confirm(f"Push tag {tag} for project {project['name']}?", default=True):
-                try:
-                    _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-                    _refresh_git_tags(project["project_path"])
-                    if not _is_tag_committed(tag, project["project_path"]):
-                        _execute_command(["git", "tag", tag], project["project_path"])                            
-                    if _is_tag_pushed(project["project_path"], tag):
-                        logging.info(f"The {tag} for project {project['name']} is already pushed")
-                        print(f"The {tag} for project {project['name']} is already pushed")
-                        continue
-                    _execute_command(["git", "push", "origin", "tag", tag], project["project_path"])
-                except Exception as e:
-                    pass
+                if _is_tag_pushed(project_path, tag):
+                    logging.info(f"The {tag} for project {project['name']} is already pushed")
+                    print(f"The {tag} for project {project['name']} is already pushed")
+                    continue
+                _execute_command(["git", "push", "origin", "tag", tag], project_path)
                 logging.info(f"Pushed tag {tag} for project {project['name']}")
                 print(f"Pushed tag {tag} for project {project['name']}")
     except Exception as ex:
         logging.error(f"An error occurred: {ex}")  
         print(f"An error occurred: {ex}")
+        
+
+def push_changes(project_filter=''):
+    """Push committed changes to the remote repository for each project."""
+    try:
+        with open("release_handler_config.yaml", "r") as file:
+            config = yaml.safe_load(file)
+            resolved_config = _resolve_placeholders(config)
+
+        base_dir = resolved_config["base_dir"]
+        for project in resolved_config["projects"]:
+            if project_filter != '' and project_filter != project['name']:
+                continue
+            if 'skip' in project and project['skip']:
+                logging.info(f"Project {project['name']} is configured to be skipped")
+                print(f"Project {project['name']} is configured to be skipped")
+                continue
                 
-def delete_tags(project_filter = ''):
-    """Delete tag of each project with the appropriate tag name."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-            resolved_config = _resolve_placeholders(config)
-        
-        for project in resolved_config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            tag = project["tag"]
-            if click.confirm(f"Delete tag {tag} for project {project['name']}?", default=True):
-                _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-                _refresh_git_tags(project["project_path"])
-                if not _is_tag_committed(tag, project["project_path"]):
-                    logging.info(f"There is no tag {tag} for project {project['name']}")
-                    print(f"There is no tag {tag} for project {project['name']}")
-                    continue
-                _execute_command(["git", "tag", "-d", tag], project["project_path"])
-                logging.info(f"Deleted tag {tag}")
-                print(f"Deleted tag {tag}")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-        
-def delete_tags_remotely(project_filter = ''):
-    """Delete tag of each project with the appropriate tag name."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-            resolved_config = _resolve_placeholders(config)
-        
-        remote = config["remote_git_repo"]
-        print(f"remote repo {remote}")
-        if not remote:
-            remote = "origin"
-        print(f"project_filter {project_filter}")
-        for project in resolved_config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            tag = project["tag"]
-            if click.confirm(f"Delete tag {tag} remotely for project {project['name']}?", default=True):
-                _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-                if not _is_tag_pushed(project["project_path"], tag):
-                    logging.info(f"The {tag} for project {project['name']} does not exist remotely")
-                    print(f"The {tag} for project {project['name']} does not exist remotely")
-                    continue
-                _execute_command(["git", "push", "--delete", remote, tag], project["project_path"])
-                logging.info(f"Deleted tag {tag} remotely")
-                print(f"Deleted tag {tag} remotely")
-                _refresh_git_tags(project["project_path"])
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-        
-def commit(project_filter = ''):
-    """Commits changes for each project with confirmation."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-        
-        for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-            changes =_list_git_changes(project["project_path"])
-            logging.info(f"Changes to commit {changes}")
-            print(f"Changes to commit {changes}")
-            if click.confirm(f"Commit changes for project {project['name']}?", default=False):
-                _execute_command(["git", "commit", "-am", f"Update project with version {project['version']}"] , project["project_path"])
-                logging.info(f"Update project with version {project['version']}")
-                print(f"Update project with version {project['version']}")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-        
-def remove_last_commit(project_filter = ''):
-    """Resets the last commit based on reset-type."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-        
-        for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue              
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-            if click.confirm(f"Reset last commit for {project['name']}?", default=False):
-                if not _is_last_commit_pushed(project["project_path"]):
-                    _execute_command(["git", "reset", f"--{project['reset_type']}", "HEAD~1"] , project["project_path"])
-                    logging.info(f"Resetted last commit for project {project['name']}")
-                    print(f"Resetted last commit for project {project['name']}")
+            project_path = os.path.join(base_dir, project["name"]) 
+            if not os.path.exists(project_path):
+                logging.info(f"Folder {project['name']} does not exist")
+                print(f"Folder {project['name']} does not exist")
+                return          
+            if _has_unpushed_commits(project_path): 
+                if click.confirm(f"Check compilation of project {project['name']} before pushing?", default=False):
+                    logging.info(f"Compiling project {project['name']} ...")
+                    print(f"Compiling {project['name']} ...")
+                    compiled = False
+                    if project["type"] == "Maven":
+                        if _compile_maven_project(project_path, config["maven_home"], config["maven_settings"], config):
+                            logging.info(f"Maven project {project['name']} compiled successfully")
+                            print(f"Maven project {project['name']} compiled successfully")
+                            compiled = True
+                    elif project["type"] == "Angular":
+                        if _compile_angular_project(project_path, config):
+                            logging.info(f"Angular project {project['name']} compiled successfully")
+                            print(f"Angular project {project['name']} compiled successfully")
+                            compiled = True
+                    elif project["type"] == "Ant":
+                        if _compile_ant_project(project_path, config):
+                            logging.info(f"Ant project {project['name']} compiled successfully")
+                            print(f"Ant project {project['name']} compiled successfully")
+                            compiled = True  
+                if not compiled:
+                    logging.info(f"Compilation failed for project {project['name']}")
+                    print(f"Compilation failed for project {project['name']}")                    
+                    return
+                if compiled and click.confirm(f"Push committed changes for {project['name']}?", default=True):
+                    _execute_command(["git", "push"], project_path)
+                    logging.info(f"Pushed committed changes for {project['name']}")
+                    print(f"Pushed committed changes for {project['name']}")
                 else:
-                    logging.info(f"Reset aborted because the last commit for project {project['name']} was already pushed")
-                    print(f"Reset aborted because the last commit for project {project['name']} was already pushed")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-
-def reset(project_filter = ''):
-    """Resets projects based on reset-type."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-        
-        for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue  
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-            if click.confirm(f"Reset {project['name']}?", default=True):
-                _execute_command(["git", "reset", f"--{project['reset_type']}"] , project["project_path"])
-                logging.info(f"Resetted project {project['name']}")
-                print(f"Resetted project {project['name']}")
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-               
-def compile_check(project_filter = ''):
-    """Resets projects based on reset-type."""
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-            
-        for project in config["projects"]:
-            if project_filter != '' and project_filter != project['name']:
-                continue        
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-            _execute_command(["git", "checkout", project["git_branch"]], project['project_path'])
-            if click.confirm(f"Compile {project['name']}?", default=True):
-                logging.info(f"Compiling project {project['name']} ...")
-                print(f"Compiling {project['name']} ...")
-                if project["type"] == "Maven":
-                    if _compile_maven_project(project["project_path"], config["maven_home"], config["maven_settings"], config):
-                        logging.info(f"Maven project {project['name']} compiled successfully")
-                        print(f"Maven project {project['name']} compiled successfully")
-                elif project["type"] == "Angular":
-                    if _compile_angular_project(project["project_path"], config):
-                        logging.info(f"Angular project {project['name']} compiled successfully")
-                        print(f"Angular project {project['name']} compiled successfully")
-                elif project["type"] == "Ant":
-                    if _compile_ant_project(project["project_path"], config):
-                        logging.info(f"Ant project {project['name']} compiled successfully")
-                        print(f"Ant project {project['name']} compiled successfully")                                      
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")  
-        print(f"An error occurred: {e}") 
-          
-        
-def extract_git_info_to_excel(project_filter='', output_file="git_info.xlsx"):
-    try:
-        with open("release_handler_config.yaml", "r") as file:
-            config = yaml.safe_load(file)
-
-        repo_paths = []
-        for project in config["projects"]:
-            if project_filter and project_filter != project['name']:
-                continue
-            if 'skip' in project and project['skip']:
-                logging.info(f"Project {project['name']} is configured to be skipped")
-                print(f"Project {project['name']} is configured to be skipped")
-                continue
-
-            repo_paths.append(project["project_path"])
-
-        records = [info for path in repo_paths if (info := _get_git_info(path)) is not None]
-
-        if not records:
-            print("No data to write to Excel.")
-            logging.warning("No data to write to Excel.")
-            return
-
-        df = pd.DataFrame(records)
-        df.to_excel(output_file, index=False)
-
-        # Open the file with openpyxl for formatting
-        wb = load_workbook(output_file)
-        ws = wb.active
-
-        # Set header fill color (orange)
-        header_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
-        for cell in ws[1]:
-            cell.fill = header_fill
-
-        # Auto-adjust column widths
-        for col in ws.columns:
-            max_length = max(len(str(cell.value)) if cell.value else 0 for cell in col)
-            col_letter = get_column_letter(col[0].column)
-            ws.column_dimensions[col_letter].width = max_length + 2  # add some padding
-
-        wb.save(output_file)
-        logging.info(f"Excel file created with formatting: {output_file}")
-        print(f"Excel file created with formatting: {output_file}")
-
+                    print(f"Skipping push for {project['name']}")
+            else:
+                logging.info(f"No unpushed commits for {project['name']}")
+                print(f"No unpushed commits for {project['name']}")
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-        print(f"An error occurred: {e}")
-                
+        print(f"An error occurred: {e}")     
 
-        
+    
+                 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        if sys.argv[1] == "update_versions":
+        if sys.argv[1] == "update_tags":
+            if len(sys.argv) > 2 and sys.argv[2] != "":
+                update_tags(sys.argv[2])
+            else:
+                update_tags()  
+        elif sys.argv[1] == "update_versions":
             if len(sys.argv) > 2 and sys.argv[2] != "":
                 update_versions(sys.argv[2])
             else:
                 update_versions()
-        elif sys.argv[1] == "create_tags":
+        elif sys.argv[1] == "push_changes":
             if len(sys.argv) > 2 and sys.argv[2] != "":
-                create_tags(sys.argv[2])
+                push_changes(sys.argv[2])
             else:
-                create_tags()
-        elif sys.argv[1] == "delete_tags":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                delete_tags(sys.argv[2])
-            else:
-                delete_tags()
-        elif sys.argv[1] == "delete_tags_remotely":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                delete_tags_remotely(sys.argv[2])
-            else:
-                delete_tags_remotely()
-        elif sys.argv[1] == "push_tags":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                push_tags(sys.argv[2])
-            else:
-                push_tags()    
-        elif sys.argv[1] == "commit":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                commit(sys.argv[2])
-            else:
-                commit()                  
-        elif sys.argv[1] == "remove_last_commit":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                remove_last_commit(sys.argv[2])
-            else:
-                remove_last_commit() 
-        elif sys.argv[1] == "reset":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                reset(sys.argv[2])
-            else:
-                reset() 
-        elif sys.argv[1] == "checkout_and_pull":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                checkout_and_pull(sys.argv[2])
-            else:
-                checkout_and_pull()   
-        elif sys.argv[1] == "compile_check":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                compile_check(sys.argv[2])
-            else:
-                compile_check() 
-        elif sys.argv[1] == "extract_git_info_to_excel":
-            if len(sys.argv) > 2 and sys.argv[2] != "":
-                extract_git_info_to_excel(sys.argv[2])
-            else:
-                extract_git_info_to_excel()                         
+                push_changes()                    
         else:
              print("Wrong argument!")           
     else:
