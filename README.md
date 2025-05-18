@@ -7,104 +7,61 @@
 
 
 
-# release-handler
+# 📚 Public Functions in `release_handler.py`
 
-Python script named release_handler.py with functions aimed at handling versioning, tagging and pushing (with an optional preliminar compilation) of a configured set of Maven (multi-module in the general case), Ant and Angular projects. The projects are configured in a release_handler.yaml file.
+The script provides automation for handling project versioning, tagging, and Git operations across multiple project types (Maven, Angular, Ant). Below are the main publicly available functions that can be called directly or used via CLI:
 
-## Prerequisites
+## `update_versions(project_filter='')`
+Updates the version numbers of all projects (or a filtered project) according to the configuration in `release_handler_config.yaml`.
 
-To use the script you must have Python installed. You can go to the Python dowload page https://www.python.org/downloads/ and follow the instructions 
-to install the latest version in your specific operating system.
+- 💡 Supports Maven (`pom.xml`), Angular (`package.json`), and Ant (`version.properties`) projects.
+- ⚙️ Clones the project repository and updates properties and dependencies.
+- 📝 Prompts to commit the version changes.
 
-When running the program some of libraries imported in the release_handler.py script could not available at runtime. You can install possible missing libraries running commands like the following in the command line:
+---
 
-'pip install click'
+## `update_tags(project_filter='')`
+Creates Git tags for projects based on configurations.
 
- or, for instance, to install the dependencies for extracting a xml file with git info:
+- 🏷️ Tags the project with a specified value, optionally appending a progressive suffix.
+- 🧪 Checks if the tag exists and pushes it to the remote if it does not.
 
- 'pip install pandas openpyxl'
+---
 
-## How the script works
+## `push_changes(project_filter='')`
+Pushes committed changes to the remote repository after optional compilation checks.
 
-The release_handler.py script defines the following functions:
+- ✅ Detects unpushed commits.
+- 🔍 Offers to compile the project before pushing (based on project type).
+- ⬆️ Pushes changes to the remote only if confirmed.
 
-- update_versions: updates the versions of each projects based on the configuration
-- push_changes: performs a compilation of each project to check possible errors using the environment settings defined in the configuration file
-- update_tags: creates tag for each project with the configured tag name
+---
 
-- extract_git_info_to_excel: generates an excel report with the current remote tag situation, with git urls, commit ids and related tags
+## `extract_git_info_to_excel(project_filter='', output_file="git_info.xlsx")`
+Extracts Git information from all configured repositories and exports it into a formatted Excel file.
 
-Here is an example of configuration file content:
+- 📊 Includes remote URL, last commit info, tags, and branches.
+- 🖨️ Automatically adjusts column widths and applies header formatting.
 
+---
+
+# ⚙️ Usage via CLI
+
+You can invoke this script from the command line with:
+
+```bash
+python release_handler.py <command> [project_name]
 ```
-environment: TEST
-release_notes:
-  - "Note 1"
-  - "Note 2"
-remote_git_repo: origin
-maven_home: C:/APPLICATIONS/apache-maven-3.9.6
-maven_settings: C:/Users/macasari/.m2/settings.xml
-maven_compile_options:
-    - "-Dpostfix=''"
-    - "-DskipTests"  
-maven_namespace: http://maven.apache.org/POM/4.0.0
-nodejs_home: C:/Program Files/nodejs
-nodejs_compile_options:
-    - "--configuration=prod-rp-01" 
-ant_home: C:/APPLICATIONS/apache-ant-1.6.2_ivy2
-ant_target: distribution 
-ant_compile_options:
-    - "-Dtarget=prod-rp-01" 
-projects:
-  - name: mavenproject
-    project_path: C:\eclipse-workspaces\csi\mavenproject
-    type: Maven
-    version: 1.21.0
-    version_file: pom.xml
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-    parent_version: 1.21.0
-    properties:
-      - property_name: tar.version
-        property_value: 1.21.0
-    dependencies:
-      - dependency_name: mavenproject-ear
-        dependency_version: 1.21.0
-      - dependency_name: mavenproject-jar
-        dependency_version: 1.21.0
-      - dependency_name: mavenproject-web
-        dependency_version: 1.21.0      
-  - name: angularproject
-    project_path: C:\eclipse-workspaces\csi\angularproject
-    type: Angular
-    version: 1.21.0
-    version_file: package.json
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
-  - name: antproject
-    project_path: C:\eclipse-workspaces\csi\antproject
-    type: Ant
-    version: 1.2.2
-    version_file: build.properties
-    tag: "{environment}-1.21.0-001"
-    reset_type: hard
-    git_branch: master
-    skip: false
+
+## Available Commands:
+- `update_versions` – Updates version numbers.
+- `update_tags` – Tags the repository.
+- `push_changes` – Pushes committed changes.
+- `extract_git_info_to_excel` – Exports Git metadata to Excel.
+
+## Example:
+```bash
+python release_handler.py update_versions my-project
 ```
-You can execute each funtion with a command like the following, provided that the release_handler.yaml file is in the same directory of the script:
-
-`python release_handler.py update_versions`
-
-or in a shorter way:
-
-`release_handler.py update_versions`
-
-You can also pass a specific project name after the function name, to execute the function on a single project:
-
-`python release_handler.py update_versions <projectname>`
 
 
