@@ -11,12 +11,6 @@ import shutil
 import stat
 import json
 from lxml import etree as lxmlET
-import pandas as pd
-from datetime import datetime
-from openpyxl import load_workbook
-from openpyxl.styles import PatternFill
-from openpyxl.utils import get_column_letter
-from git import Repo
 
 # Configure logging
 logging.basicConfig(filename='release-handler.log', level=logging.INFO, 
