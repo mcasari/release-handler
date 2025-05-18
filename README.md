@@ -65,3 +65,64 @@ python release_handler.py update_versions my-project
 ```
 
 
+---
+
+# 🛠️ Setup and Installation
+
+## 1. Install Python
+
+Make sure Python 3.7 or higher is installed on your system.
+
+### On Ubuntu/Debian:
+```bash
+sudo apt update
+sudo apt install python3 python3-pip
+```
+
+### On macOS (via Homebrew):
+```bash
+brew install python
+```
+
+### On Windows:
+- Download the installer from the [official Python website](https://www.python.org/downloads/).
+- During installation, make sure to check the box **"Add Python to PATH"**.
+
+---
+
+## 2. Install Required Python Libraries
+
+This script requires several Python packages which can be installed using pip. Run the following command in your terminal:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Example `requirements.txt`:
+```
+pyyaml
+click
+lxml
+pandas
+openpyxl
+```
+
+Alternatively, you can install them directly:
+
+```bash
+pip install pyyaml click lxml pandas openpyxl
+```
+
+---
+
+## ✅ Verifying Installation
+
+You can verify the installation by running:
+
+```bash
+python release_handler.py --help
+```
+
+If the script runs without import errors, you're all set!
+
+
