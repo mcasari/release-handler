@@ -5,6 +5,10 @@ release_notes:
   - "Note 2"
 
 remote_git_repo: origin
+base_dir: C:/APP
+tag_progr_suffix: true
+tag_progr_suffix_format: '03d'
+tag_progr_suffix_format_prefix: '-'
 maven_home: C:/APPLICATIONS/apache-maven-3.9.6
 maven_settings: C:/Users/macasari/.m2/settings.xml
 maven_compile_options:
@@ -21,11 +25,11 @@ ant_compile_options:
     
 projects:
   - name: mavenproject
-    project_path: C:\eclipse-workspaces\mavenproject
+    project_remote_git_url: https://gitlab.xxx/projects/mavenproject.git
     type: Maven
     version: 1.3.3
     version_file: pom.xml
-    tag: "{environment}-1.3.3-001"
+    tag: "{environment}-1.3.3"
     reset_type: hard
     git_branch: master
     skip: false
@@ -42,21 +46,24 @@ projects:
         dependency_version: 1.3.3    
         
   - name: angularproject
-    project_path: C:\eclipse-workspaces\angularproject
+    project_remote_git_url: https://gitlab.xxx/projects/angularproject.git
     type: Angular
     version: 1.21.0
     version_file: package.json
-    tag: "{environment}-1.21.0-001"
+    tag: "{environment}-1.21.0"
     reset_type: hard
     git_branch: master
     skip: false
+    dependencies:
+      - dependency_name: '@common-lib'
+        dependency_version: 0.0.1
       
   - name: antproject
-    project_path: C:\eclipse-workspaces\antproject
+    project_remote_git_url: https://gitlab.xxx/projects/antproject.git
     type: Ant
     version: 1.5.4
     version_file: build.properties
-    tag: "{environment}-1.5.4-001"
+    tag: "{environment}-1.5.4"
     reset_type: hard
     git_branch: master
     skip: false

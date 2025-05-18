@@ -200,6 +200,7 @@ def _execute_command(command, cwd):
         raise
         
 def _update_all_pom_properties(project, config):
+    base_dir = config["base_dir"]
     project_path = base_dir + '/' + project["name"]
     for root, _, files in os.walk(project_path):
         for file in files:
@@ -291,13 +292,13 @@ def _update_maven_versions(project_path, dependencies, version, parent_version, 
 
 def _update_maven_versions_from_yaml(project, config):    
     maven_namespace = config["maven_namespace"]
-    project_path = project.get("project_path")
+    base_dir = config["base_dir"]
+    project_path = base_dir + '/' + project["name"]
     parent_version = project.get("parent_version")
     dependencies = project.get("dependencies", [])
-    version = project.get("version")
-    if not project_path or not dependencies or not version or not maven_namespace:
-        raise ValueError("YAML file must contain 'maven_namespace', 'project_path', 'parent_version', 'dependencies' and 'version' fields.")
-    
+    if not dependencies:
+        dependencies = []
+    version = project.get("version")    
     _update_maven_versions(project_path, dependencies, version, parent_version, maven_namespace)
     
 def _update_angular_version(path, version, version_file, dependencies):
@@ -362,12 +363,13 @@ def _compile_maven_project(project_path, maven_home, settings_file, config) -> b
     command = command[:install_index + 1] + maven_compile_options + command[install_index + 1:]
     
     try:
+        print("Maven build:" + project_path)
         result = subprocess.run(command, cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if result.returncode == 0:
             return True
         else:
-            logging.info("Maven build failed:", result.stderr)
-            print("Maven build failed:", result.stderr)
+            logging.info("Maven build failed: " + result.stderr)
+            print("Maven build failed: " + result.stderr)
             return False
     except Exception as e:
         logging.error(f"Error running Maven: {e}")
@@ -583,17 +585,20 @@ def push_changes(project_filter=''):
                 logging.info(f"Project {project['name']} is configured to be skipped")
                 print(f"Project {project['name']} is configured to be skipped")
                 continue
-                
-            project_path = os.path.join(base_dir, project["name"]) 
+            
+            base_dir = resolved_config["base_dir"]
+            project_path = base_dir + '/' + project["name"]
             if not os.path.exists(project_path):
                 logging.info(f"Folder {project['name']} does not exist")
                 print(f"Folder {project['name']} does not exist")
                 return          
-            if _has_unpushed_commits(project_path): 
+            if _has_unpushed_commits(project_path):
+                skip_compilation = True
+                compiled = False                
                 if click.confirm(f"Check compilation of project {project['name']} before pushing?", default=False):
+                    skip_compilation = False
                     logging.info(f"Compiling project {project['name']} ...")
-                    print(f"Compiling {project['name']} ...")
-                    compiled = False
+                    print(f"Compiling {project['name']} ...")                   
                     if project["type"] == "Maven":
                         if _compile_maven_project(project_path, config["maven_home"], config["maven_settings"], config):
                             logging.info(f"Maven project {project['name']} compiled successfully")
@@ -608,12 +613,12 @@ def push_changes(project_filter=''):
                         if _compile_ant_project(project_path, config):
                             logging.info(f"Ant project {project['name']} compiled successfully")
                             print(f"Ant project {project['name']} compiled successfully")
-                            compiled = True  
-                if not compiled:
+                            compiled = True
+                if not skip_compilation and not compiled:
                     logging.info(f"Compilation failed for project {project['name']}")
                     print(f"Compilation failed for project {project['name']}")                    
                     return
-                if compiled and click.confirm(f"Push committed changes for {project['name']}?", default=True):
+                if click.confirm(f"Push committed changes for {project['name']}?", default=True):
                     _execute_command(["git", "push"], project_path)
                     logging.info(f"Pushed committed changes for {project['name']}")
                     print(f"Pushed committed changes for {project['name']}")
